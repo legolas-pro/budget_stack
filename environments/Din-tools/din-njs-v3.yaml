@@ -7,12 +7,20 @@ version: "3.7"
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  postgres: &postgres_image postgres:14-alpine
+  n8n: &n8n_image n8nio/n8n:latest
+  redis: &redis_image redis:7-alpine
+
 services:
   # ==========================================================================
   # POSTGRESQL - Banco de Dados Dedicado para N8N
   # ==========================================================================
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:14-alpine}
+    image: *postgres_image
     networks:
       - internal_network
 
@@ -60,7 +68,7 @@ services:
   # N8N EDITOR - Interface Principal
   # ==========================================================================
   n8n_editor:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: start
     networks:
       - internal_network
@@ -184,7 +192,7 @@ services:
   # N8N WEBHOOK - Processamento de Webhooks
   # ==========================================================================
   n8n_webhook:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: webhook
     networks:
       - internal_network
@@ -307,7 +315,7 @@ services:
   # N8N WORKER - Processamento de Filas
   # ==========================================================================
   n8n_worker:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: worker --concurrency=10
     networks:
       - internal_network
@@ -420,7 +428,7 @@ services:
   # REDIS - Sistema de Filas
   # ==========================================================================
   n8n_redis:
-    image: ${REDIS_IMAGE:-redis:7-alpine}
+    image: *redis_image
     command:
       - redis-server
       - --appendonly yes
