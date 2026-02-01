@@ -12,12 +12,12 @@ services:
   # POSTGRESQL - Banco de Dados Dedicado para N8N
   # ==========================================================================
   postgres:
-    image: postgres:14-alpine
+    image: ${POSTGRES_IMAGE:-postgres:14-alpine}
     networks:
       - din_njs_internal
 
     ports:
-      - "5435:5432"
+      - "${POSTGRES_PORT_EXTERNAL:-5435}:5432"
 
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -60,7 +60,7 @@ services:
   # N8N EDITOR - Interface Principal
   # ==========================================================================
   n8n_editor:
-    image: n8nio/n8n:latest
+    image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: start
     networks:
       - din_njs_internal
@@ -184,7 +184,7 @@ services:
   # N8N WEBHOOK - Processamento de Webhooks
   # ==========================================================================
   n8n_webhook:
-    image: n8nio/n8n:latest
+    image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: webhook
     networks:
       - din_njs_internal
@@ -307,7 +307,7 @@ services:
   # N8N WORKER - Processamento de Filas
   # ==========================================================================
   n8n_worker:
-    image: n8nio/n8n:latest
+    image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: worker --concurrency=10
     networks:
       - din_njs_internal
@@ -420,7 +420,7 @@ services:
   # REDIS - Sistema de Filas
   # ==========================================================================
   n8n_redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     command:
       - redis-server
       - --appendonly yes
@@ -431,7 +431,7 @@ services:
       - --save 300 10
       - --save 60 10000
     ports:
-      - "6379:6379"    # ← ADICIONAR ESTA LINHA
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
     networks:
       - din_njs_internal
 
