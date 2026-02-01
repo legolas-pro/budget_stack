@@ -118,7 +118,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -241,7 +241,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -363,7 +363,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -424,14 +424,14 @@ services:
     command:
       - redis-server
       - --appendonly yes
-      - --port 6379
+      - --port ${REDIS_PORT_EXTERNAL}
       - --maxmemory 1536mb
       - --maxmemory-policy allkeys-lru
       - --save 900 1
       - --save 300 10
       - --save 60 10000
     ports:
-      - "${REDIS_PORT_EXTERNAL}:6379"
+      - "${REDIS_PORT_EXTERNAL}:${REDIS_PORT_EXTERNAL}"
     networks:
       - din_njs_internal
 
