@@ -480,7 +480,6 @@ volumes:
 # ============================================================================
 networks:
   ${INTERNAL_NETWORK_NAME:-din_njs_internal}:
-    driver: overlay
-    internal: true
+    external: true
   traefik_public:
     external: true
