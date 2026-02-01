@@ -159,6 +159,7 @@ flowchart TB
 | Variável | Staging (`develop`) | Production (`main`) |
 |----------|---------------------|---------------------|
 | **Stack Name** | `din-njs-stag` | `din-njs` |
+| **TRAEFIK_PREFIX** | `din-njs-stag` | `din-njs` |
 | **POSTGRES_PORT_EXTERNAL** | `5436` | `5435` |
 | **REDIS_PORT_EXTERNAL** | `6381` | `6380` |
 | **N8N_HOST** | `din-njs-stag.dinamopro.com` | `din-njs.dinamopro.com` |
