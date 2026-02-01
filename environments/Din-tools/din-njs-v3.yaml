@@ -17,7 +17,7 @@ services:
       - din_njs_internal
 
     ports:
-      - "${POSTGRES_PORT_EXTERNAL}:5432"
+      - "${POSTGRES_PORT_EXTERNAL}:${POSTGRES_PORT_INTERNAL}"
 
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -78,7 +78,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -118,7 +118,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -202,7 +202,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -241,7 +241,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -324,7 +324,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -363,7 +363,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_EXTERNAL}
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -424,14 +424,14 @@ services:
     command:
       - redis-server
       - --appendonly yes
-      - --port ${REDIS_PORT_EXTERNAL}
+      - --port ${REDIS_PORT_INTERNAL}
       - --maxmemory 1536mb
       - --maxmemory-policy allkeys-lru
       - --save 900 1
       - --save 300 10
       - --save 60 10000
     ports:
-      - "${REDIS_PORT_EXTERNAL}:${REDIS_PORT_EXTERNAL}"
+      - "${REDIS_PORT_EXTERNAL}:${REDIS_PORT_INTERNAL}"
     networks:
       - din_njs_internal
 
