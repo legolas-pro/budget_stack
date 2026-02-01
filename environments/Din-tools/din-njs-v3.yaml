@@ -14,10 +14,10 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:14-alpine}
     networks:
-      - din_njs_internal
+      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
 
     ports:
-      - "${POSTGRES_PORT_EXTERNAL}:${POSTGRES_PORT_INTERNAL}"
+      - "${POSTGRES_PORT_EXTERNAL}:5432"
 
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -63,7 +63,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: start
     networks:
-      - din_njs_internal
+      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
       - traefik_public
 
     dns:
@@ -78,7 +78,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -118,7 +118,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -187,7 +187,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: webhook
     networks:
-      - din_njs_internal
+      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
       - traefik_public
 
     dns:
@@ -202,7 +202,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -241,7 +241,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -310,7 +310,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: worker --concurrency=10
     networks:
-      - din_njs_internal
+      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
 
     dns:
       - 8.8.8.8
@@ -324,7 +324,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -363,7 +363,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -424,16 +424,16 @@ services:
     command:
       - redis-server
       - --appendonly yes
-      - --port ${REDIS_PORT_INTERNAL}
+      - --port 6379
       - --maxmemory 1536mb
       - --maxmemory-policy allkeys-lru
       - --save 900 1
       - --save 300 10
       - --save 60 10000
     ports:
-      - "${REDIS_PORT_EXTERNAL}:${REDIS_PORT_INTERNAL}"
+      - "${REDIS_PORT_EXTERNAL}:6379"
     networks:
-      - din_njs_internal
+      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
 
     dns:
       - 8.8.8.8
@@ -459,7 +459,7 @@ services:
         max_attempts: 3
 
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -p ${REDIS_PORT_INTERNAL} ping"]
+      test: ["CMD-SHELL", "redis-cli -p 6379 ping"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -479,7 +479,7 @@ volumes:
 # NETWORKS
 # ============================================================================
 networks:
-  din_njs_internal:
+  ${INTERNAL_NETWORK_NAME:-din_njs_internal}:
     driver: overlay
     internal: true
   traefik_public:
