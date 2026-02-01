@@ -1,0 +1,56 @@
+version: "3.8"
+
+# ============================================================================
+# STACK: Redis Insights Socat Proxy
+# VPS: Infra
+# AUTOR: Legolas @ Dinamo Pro
+#
+# DESCRIÇÃO:
+#   Proxy Socat que roda no Swarm e encaminha requisições do Traefik
+#   para o RedisInsight rodando via Compose na porta 127.0.0.1:5540
+#
+# DEPLOY (Docker Swarm):
+#   docker stack deploy -c redis-insights-socat-stack.yml redis-insights
+#
+# VARIÁVEIS (.env ou export):
+#   REDIS_INSIGHTS_DOMAIN=ram.dinamopro.com
+# ============================================================================
+
+networks:
+  traefik_public:
+    external: true
+
+services:
+
+  # ==========================================================================
+  # SOCAT PROXY - Encaminha Traefik -> RedisInsight (porta 5540 do host)
+  # ==========================================================================
+  socat_proxy:
+    image: alpine/socat:latest
+    # Conecta ao gateway da rede bridge onde o RedisInsight está
+    command: TCP-LISTEN:8080,fork,reuseaddr TCP:172.19.0.1:5540
+    networks:
+      - traefik_public
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.redis-insights.rule=Host(`${REDIS_INSIGHTS_DOMAIN:-ram.dinamopro.com}`)"
+        - "traefik.http.routers.redis-insights.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.redis-insights.entrypoints=websecure"
+        - "traefik.http.services.redis-insights.loadbalancer.server.port=8080"
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3

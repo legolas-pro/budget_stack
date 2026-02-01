@@ -1,0 +1,111 @@
+version: "3.7"
+
+services:
+  ## --------------------------- TRAEFIK --------------------------- ##
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # API e Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"  # Dashboard sem senha na 8080
+      # Logs
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      # Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=proxy"
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Redirect HTTP to HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # Let's Encrypt
+      - "--certificatesresolvers.letsencryptresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencryptresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencryptresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencryptresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/letsencrypt
+    networks:
+      - proxy
+
+  ## --------------------------- METABASE --------------------------- ##
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    restart: unless-stopped
+    environment:
+      MB_SITE_URL: https://dashs.dinamopro.ai
+      MB_DB_FILE: /metabase-data/metabase.db
+    volumes:
+      - metabase-data:/metabase-data
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.metabase.rule=Host(`dashs.dinamopro.ai`)"
+      - "traefik.http.routers.metabase.entrypoints=websecure"
+      - "traefik.http.routers.metabase.tls=true"
+      - "traefik.http.routers.metabase.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+
+  ## --------------------------- METABASE MCP --------------------------- ##
+  metabase_mcp:
+    image: mcp/metabase:latest
+    container_name: metabase_mcp
+    restart: unless-stopped
+    stdin_open: true
+    environment:
+      # Metabase Connection
+      METABASE_URL: http://metabase:3000
+      METABASE_USERNAME: ${METABASE_USERNAME}
+      METABASE_API_KEY: ${METABASE_API_KEY}
+      METABASE_PASSWORD: ${METABASE_PASSWORD}
+      # MCP Config
+      MCP_MODE: http
+      USE_FIXED_HTTP: "true"
+      HOST: 0.0.0.0
+      PORT: 3333
+      LOG_LEVEL: info
+      AUTH_TOKEN: metabase-internal-2025
+      TRUST_PROXY: "1"
+      CORS_ORIGIN: "*"
+    networks:
+      - proxy
+      - internal
+    depends_on:
+      - metabase
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.metabase_mcp.rule=Host(`dashs.dinamopro.ai`) && (PathPrefix(`/mcp`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.metabase_mcp.entrypoints=websecure"
+      - "traefik.http.routers.metabase_mcp.priority=100"
+      - "traefik.http.routers.metabase_mcp.tls=true"
+      - "traefik.http.routers.metabase_mcp.tls.certresolver=letsencryptresolver"
+      - "traefik.http.routers.metabase_mcp.service=metabase_mcp_service"
+      - "traefik.http.services.metabase_mcp_service.loadbalancer.server.port=3333"
+
+volumes:
+  traefik-certificates:
+    driver: local
+  metabase-data:
+    driver: local
+
+networks:
+  proxy:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true

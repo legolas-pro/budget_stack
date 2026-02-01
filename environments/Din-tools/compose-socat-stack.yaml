@@ -1,0 +1,36 @@
+# Criar pasta
+##mkdir -p /opt/socat-bridge
+##cd /opt/socat-bridge
+
+# Criar arquivo
+##cat > docker-compose.yml << 'EOF'
+version: "3.8"
+
+services:
+  socat-espocrm:
+    image: alpine/socat:latest
+    command: TCP6-LISTEN:15433,fork,reuseaddr TCP4:127.0.0.1:5433
+    restart: always
+    network_mode: host
+
+  socat-vikunja:
+    image: alpine/socat:latest
+    command: TCP6-LISTEN:15434,fork,reuseaddr TCP4:127.0.0.1:5434
+    restart: always
+    network_mode: host
+
+  socat-n8n:
+    image: alpine/socat:latest
+    command: TCP6-LISTEN:15435,fork,reuseaddr TCP4:127.0.0.1:5435
+    restart: always
+    network_mode: host
+
+  socat-redis:
+    image: alpine/socat:latest
+    command: TCP6-LISTEN:16379,fork,reuseaddr TCP4:127.0.0.1:6379
+    restart: always
+    network_mode: host
+EOF
+
+# Subir
+## docker compose up -d

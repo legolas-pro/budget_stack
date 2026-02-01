@@ -1,0 +1,140 @@
+version: "3.8"
+
+# ============================================================================
+# STACK: MCP Mesh (Model Context Protocol Mesh)
+# VPS: Din-tools
+# AUTOR: Legolas @ Dinamo Pro
+# DOC: https://github.com/decocms/mesh/deploy
+# ============================================================================
+
+networks:
+  mcp_mesh_internal:
+    driver: overlay
+    attachable: true
+  traefik_public:
+    external: true
+
+volumes:
+  mcp_mesh_pgdata:
+    driver: local
+
+services:
+
+  # ==========================================================================
+  # POSTGRESQL - Banco de Dados Local
+  # ==========================================================================
+  mcp_mesh_db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mesh_db}
+      POSTGRES_USER: ${POSTGRES_USER:-mesh_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - mcp_mesh_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    networks:
+      - mcp_mesh_internal
+    command:
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=128MB"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mesh_user} -d ${POSTGRES_DB:-mesh_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # MCP MESH - Aplicação Principal
+  # ==========================================================================
+  mcp_mesh:
+    image: ${IMAGE_REPOSITORY:-ghcr.io/decocms/mesh/mesh}:${IMAGE_TAG:-latest}
+    environment:
+      ## ===== NODE =====
+      - NODE_ENV=${NODE_ENV:-production}
+
+      ## ===== URLS =====
+      - BETTER_AUTH_URL=https://${MCP_MESH_DOMAIN}
+      - BASE_URL=https://${MCP_MESH_DOMAIN}
+
+      ## ===== AUTENTICAÇÃO (OBRIGATÓRIO) =====
+      # Gerar: openssl rand -base64 32
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+
+      ## ===== CRIPTOGRAFIA (OBRIGATÓRIO) =====
+      # Gerar: openssl rand -hex 32
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
+      ## ===== BANCO DE DADOS =====
+      # Nota: mcp_mesh_db funciona se ambos estiverem na mesma rede
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mesh_user}:${POSTGRES_PASSWORD}@mcp_mesh_db:5432/${POSTGRES_DB:-mesh_db}
+
+      ## ===== TIMEZONE =====
+      - TZ=America/Sao_Paulo
+
+    volumes:
+      # ⚠️ auth-config.json montado do servidor
+      - /root/mcp-mesh-config/auth-config.json:/app/apps/mesh/auth-config.json:ro
+
+    networks:
+      - mcp_mesh_internal
+      - traefik_public
+
+    depends_on:
+      - mcp_mesh_db
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        ## ===== TRAEFIK ROUTING =====
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.mcp_mesh.rule=Host(`${MCP_MESH_DOMAIN}`)"
+        - "traefik.http.routers.mcp_mesh.entrypoints=websecure"
+        - "traefik.http.routers.mcp_mesh.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.mcp_mesh.loadbalancer.server.port=3000"
+        - "traefik.http.services.mcp_mesh.loadbalancer.passhostheader=true"
+
+    # Healthcheck desabilitado - curl não disponível na imagem
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 120s
