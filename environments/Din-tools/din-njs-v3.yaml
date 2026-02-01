@@ -14,7 +14,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:14-alpine}
     networks:
-      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
+      - internal_network
 
     ports:
       - "${POSTGRES_PORT_EXTERNAL}:5432"
@@ -63,7 +63,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: start
     networks:
-      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
+      - internal_network
       - traefik_public
 
     dns:
@@ -187,7 +187,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: webhook
     networks:
-      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
+      - internal_network
       - traefik_public
 
     dns:
@@ -310,7 +310,7 @@ services:
     image: ${N8N_IMAGE:-n8nio/n8n:latest}
     command: worker --concurrency=10
     networks:
-      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
+      - internal_network
 
     dns:
       - 8.8.8.8
@@ -433,7 +433,7 @@ services:
     ports:
       - "${REDIS_PORT_EXTERNAL}:6379"
     networks:
-      - ${INTERNAL_NETWORK_NAME:-din_njs_internal}
+      - internal_network
 
     dns:
       - 8.8.8.8
@@ -479,7 +479,9 @@ volumes:
 # NETWORKS
 # ============================================================================
 networks:
-  ${INTERNAL_NETWORK_NAME:-din_njs_internal}:
-    external: true
+  internal_network:
+    driver: overlay
+    internal: true
   traefik_public:
     external: true
+    name: traefik_public
