@@ -7,17 +7,25 @@ version: "3.7"
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  postgres: &postgres_image postgres:14-alpine
+  n8n: &n8n_image n8nio/n8n:latest
+  redis: &redis_image redis:7-alpine
+
 services:
   # ==========================================================================
   # POSTGRESQL - Banco de Dados Dedicado para N8N
   # ==========================================================================
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:14-alpine}
+    image: *postgres_image
     networks:
-      - din_njs_internal
+      - internal_network
 
     ports:
-      - "${POSTGRES_PORT_EXTERNAL}:${POSTGRES_PORT_INTERNAL}"
+      - "${POSTGRES_PORT_EXTERNAL}:5432"
 
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -60,10 +68,10 @@ services:
   # N8N EDITOR - Interface Principal
   # ==========================================================================
   n8n_editor:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: start
     networks:
-      - din_njs_internal
+      - internal_network
       - traefik_public
 
     dns:
@@ -78,7 +86,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -118,7 +126,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -165,13 +173,13 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
-        - traefik.http.routers.n8n_editor.rule=Host(`${N8N_HOST:-din-njs.dinamopro.com}`)
-        - traefik.http.routers.n8n_editor.entrypoints=websecure
-        - traefik.http.routers.n8n_editor.priority=2
-        - traefik.http.routers.n8n_editor.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.n8n_editor.service=n8n_editor
-        - traefik.http.services.n8n_editor.loadbalancer.server.port=5678
-        - traefik.http.services.n8n_editor.loadbalancer.passhostheader=true
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.rule=Host(`${N8N_HOST:-din-njs.dinamopro.com}`)
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.entrypoints=websecure
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.priority=2
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.service=${TRAEFIK_PREFIX:-din-njs}_editor
+        - traefik.http.services.${TRAEFIK_PREFIX:-din-njs}_editor.loadbalancer.server.port=5678
+        - traefik.http.services.${TRAEFIK_PREFIX:-din-njs}_editor.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
@@ -184,10 +192,10 @@ services:
   # N8N WEBHOOK - Processamento de Webhooks
   # ==========================================================================
   n8n_webhook:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: webhook
     networks:
-      - din_njs_internal
+      - internal_network
       - traefik_public
 
     dns:
@@ -202,7 +210,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -241,7 +249,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -288,13 +296,13 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
-        - traefik.http.routers.n8n_webhook.rule=Host(`${WEBHOOK_HOST:-din-wh.dinamopro.com}`)
-        - traefik.http.routers.n8n_webhook.entrypoints=websecure
-        - traefik.http.routers.n8n_webhook.priority=2
-        - traefik.http.routers.n8n_webhook.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.n8n_webhook.service=n8n_webhook
-        - traefik.http.services.n8n_webhook.loadbalancer.server.port=5678
-        - traefik.http.services.n8n_webhook.loadbalancer.passhostheader=true
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.rule=Host(`${WEBHOOK_HOST:-din-wh.dinamopro.com}`)
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.entrypoints=websecure
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.priority=2
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.service=${TRAEFIK_PREFIX:-din-njs}_webhook
+        - traefik.http.services.${TRAEFIK_PREFIX:-din-njs}_webhook.loadbalancer.server.port=5678
+        - traefik.http.services.${TRAEFIK_PREFIX:-din-njs}_webhook.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
@@ -307,10 +315,10 @@ services:
   # N8N WORKER - Processamento de Filas
   # ==========================================================================
   n8n_worker:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: *n8n_image
     command: worker --concurrency=10
     networks:
-      - din_njs_internal
+      - internal_network
 
     dns:
       - 8.8.8.8
@@ -324,7 +332,7 @@ services:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
       - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=${POSTGRES_PORT_INTERNAL}
+      - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_USER:-postgres}
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
 
@@ -363,7 +371,7 @@ services:
 
       ## ===== REDIS/QUEUE =====
       - QUEUE_BULL_REDIS_HOST=n8n_redis
-      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT_INTERNAL}
+      - QUEUE_BULL_REDIS_PORT=6379
       - QUEUE_BULL_REDIS_DB=1
 
       ## ===== MÉTRICAS =====
@@ -420,20 +428,20 @@ services:
   # REDIS - Sistema de Filas
   # ==========================================================================
   n8n_redis:
-    image: ${REDIS_IMAGE:-redis:7-alpine}
+    image: *redis_image
     command:
       - redis-server
       - --appendonly yes
-      - --port ${REDIS_PORT_INTERNAL}
+      - --port 6379
       - --maxmemory 1536mb
       - --maxmemory-policy allkeys-lru
       - --save 900 1
       - --save 300 10
       - --save 60 10000
     ports:
-      - "${REDIS_PORT_EXTERNAL}:${REDIS_PORT_INTERNAL}"
+      - "${REDIS_PORT_EXTERNAL}:6379"
     networks:
-      - din_njs_internal
+      - internal_network
 
     dns:
       - 8.8.8.8
@@ -459,7 +467,7 @@ services:
         max_attempts: 3
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -p 6379 ping"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -471,16 +479,18 @@ services:
 volumes:
   postgres_data:
     external: true
-    name: postgres_data
+    name: ${TRAEFIK_PREFIX:-din-njs}_postgres_data
   n8n_redis:
-    driver: local
+    external: true
+    name: ${TRAEFIK_PREFIX:-din-njs}_redis_data
 
 # ============================================================================
 # NETWORKS
 # ============================================================================
 networks:
-  din_njs_internal:
+  internal_network:
     driver: overlay
     internal: true
   traefik_public:
     external: true
+    name: traefik_public
