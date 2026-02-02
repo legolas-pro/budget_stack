@@ -221,7 +221,13 @@ flowchart TD
 | `${TRAEFIK_PREFIX}_postgres_data` | External | Dados persistentes do PostgreSQL |
 | `${TRAEFIK_PREFIX}_redis_data` | External | Dados persistentes do Redis |
 
-### Isolamento de Volumes por Ambiente
+### Estratégias de Volumes
+
+Existem duas abordagens para gerenciar os volumes entre staging e production:
+
+#### Opção 1: Volumes Isolados (Recomendado)
+
+Cada ambiente possui seus próprios volumes. **Configuração atual.**
 
 ```mermaid
 flowchart TB
@@ -253,11 +259,17 @@ flowchart TB
     style RD_STAG fill:#ff9,stroke:#333
 ```
 
-> **Isolamento completo:** Cada ambiente (staging/production) possui seus próprios volumes, garantindo que alterações em staging não afetem produção.
+**Vantagens:**
+- Isolamento total entre ambientes
+- Pode testar migrations de versão com segurança
+- Permite testes destrutivos em staging
+- Staging pode ter dados de teste diferentes
 
-### Criação dos Volumes
+**Desvantagens:**
+- Consome mais espaço em disco
+- Dados de staging podem ficar desatualizados
 
-Os volumes devem ser criados manualmente antes do primeiro deploy:
+**Criação dos volumes:**
 
 ```bash
 # Production
@@ -268,3 +280,72 @@ docker volume create din-njs_redis_data
 docker volume create din-njs-stag_postgres_data
 docker volume create din-njs-stag_redis_data
 ```
+
+#### Opção 2: Volumes Compartilhados
+
+Ambos os ambientes apontam para o mesmo volume.
+
+```mermaid
+flowchart TB
+    subgraph VOLUMES["Docker Volumes"]
+        PG_VOL[("postgres_data\n(volume único)")]
+        RD_VOL[("redis_data\n(volume único)")]
+    end
+
+    subgraph STAG["Stack: din-njs-stag"]
+        S_PG["postgres"]
+        S_RD["redis"]
+    end
+
+    subgraph PROD["Stack: din-njs"]
+        P_PG["postgres"]
+        P_RD["redis"]
+    end
+
+    S_PG --> PG_VOL
+    S_RD --> RD_VOL
+    P_PG --> PG_VOL
+    P_RD --> RD_VOL
+
+    style PG_VOL fill:#ff9,stroke:#333,stroke-width:2px
+    style RD_VOL fill:#ff9,stroke:#333,stroke-width:2px
+```
+
+**Vantagens:**
+- Economia de espaço em disco
+- Staging sempre tem dados reais de produção
+- Útil para testar apenas infraestrutura (versões de imagem, configs)
+
+**Desvantagens:**
+- Alterações em staging afetam produção imediatamente
+- Não pode testar migrations de forma segura
+- Workflows editados em staging mudam em produção
+
+**Para usar volumes compartilhados**, edite o YAML:
+
+```yaml
+volumes:
+  postgres_data:
+    external: true
+    name: postgres_data  # mesmo nome para ambos
+  n8n_redis:
+    external: true
+    name: redis_data     # mesmo nome para ambos
+```
+
+E crie apenas um par de volumes:
+
+```bash
+docker volume create postgres_data
+docker volume create redis_data
+```
+
+### Quando Usar Cada Opção?
+
+| Cenário | Recomendação |
+|---------|--------------|
+| Desenvolver/testar workflows | **Isolados** |
+| Testar atualização de versão do n8n | **Isolados** |
+| Testar apenas configs de infra (rede, recursos, imagens) | Compartilhados |
+| Ambiente com pouco espaço em disco | Compartilhados |
+| Ambiente de produção crítico | **Isolados** |
