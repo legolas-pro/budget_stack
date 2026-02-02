@@ -173,6 +173,7 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
+        - traefik.docker.network=traefik_public
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_editor.rule=Host(`${N8N_HOST:-clinicia-njs.dinamopro.ai}`)
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_editor.entrypoints=websecure
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_editor.priority=2
@@ -297,6 +298,7 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
+        - traefik.docker.network=traefik_public
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_webhook.rule=Host(`${WEBHOOK_HOST:-clinicia-wh.dinamopro.ai}`)
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_webhook.entrypoints=websecure
         - traefik.http.routers.${TRAEFIK_PREFIX:-clinicia-njs}_webhook.priority=2
