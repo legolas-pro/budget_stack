@@ -218,7 +218,53 @@ flowchart TD
 
 | Volume | Tipo | Descrição |
 |--------|------|-----------|
-| `postgres_data` | External | Dados persistentes do PostgreSQL |
-| `n8n_redis` | Local | Dados persistentes do Redis |
+| `${TRAEFIK_PREFIX}_postgres_data` | External | Dados persistentes do PostgreSQL |
+| `${TRAEFIK_PREFIX}_redis_data` | External | Dados persistentes do Redis |
 
-> **Nota:** O volume `postgres_data` deve ser criado manualmente antes do primeiro deploy.
+### Isolamento de Volumes por Ambiente
+
+```mermaid
+flowchart TB
+    subgraph VOLUMES["Docker Volumes"]
+        PG_PROD[("din-njs_postgres_data")]
+        PG_STAG[("din-njs-stag_postgres_data")]
+        RD_PROD[("din-njs_redis_data")]
+        RD_STAG[("din-njs-stag_redis_data")]
+    end
+
+    subgraph STAG["Stack: din-njs-stag"]
+        S_PG["postgres"]
+        S_RD["redis"]
+    end
+
+    subgraph PROD["Stack: din-njs"]
+        P_PG["postgres"]
+        P_RD["redis"]
+    end
+
+    S_PG --> PG_STAG
+    S_RD --> RD_STAG
+    P_PG --> PG_PROD
+    P_RD --> RD_PROD
+
+    style PG_PROD fill:#9f9,stroke:#333
+    style PG_STAG fill:#ff9,stroke:#333
+    style RD_PROD fill:#9f9,stroke:#333
+    style RD_STAG fill:#ff9,stroke:#333
+```
+
+> **Isolamento completo:** Cada ambiente (staging/production) possui seus próprios volumes, garantindo que alterações em staging não afetem produção.
+
+### Criação dos Volumes
+
+Os volumes devem ser criados manualmente antes do primeiro deploy:
+
+```bash
+# Production
+docker volume create din-njs_postgres_data
+docker volume create din-njs_redis_data
+
+# Staging
+docker volume create din-njs-stag_postgres_data
+docker volume create din-njs-stag_redis_data
+```

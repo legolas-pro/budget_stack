@@ -479,9 +479,10 @@ services:
 volumes:
   postgres_data:
     external: true
-    name: postgres_data
+    name: ${TRAEFIK_PREFIX:-din-njs}_postgres_data
   n8n_redis:
-    driver: local
+    external: true
+    name: ${TRAEFIK_PREFIX:-din-njs}_redis_data
 
 # ============================================================================
 # NETWORKS
