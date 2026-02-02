@@ -173,6 +173,7 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
+        - traefik.docker.network=traefik_public
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.rule=Host(`${N8N_HOST:-din-njs.dinamopro.com}`)
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.entrypoints=websecure
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_editor.priority=2
@@ -296,6 +297,7 @@ services:
         max_attempts: 3
       labels:
         - traefik.enable=true
+        - traefik.docker.network=traefik_public
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.rule=Host(`${WEBHOOK_HOST:-din-wh.dinamopro.com}`)
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.entrypoints=websecure
         - traefik.http.routers.${TRAEFIK_PREFIX:-din-njs}_webhook.priority=2
