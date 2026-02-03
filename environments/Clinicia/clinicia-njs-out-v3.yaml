@@ -322,7 +322,8 @@ services:
     command: worker --concurrency=10
     networks:
       - internal_network
-    
+      - traefik_public
+
     # Configuração DNS para resolver requisições externas
     dns:
       - 8.8.8.8
