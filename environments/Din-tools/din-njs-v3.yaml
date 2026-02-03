@@ -321,6 +321,7 @@ services:
     command: worker --concurrency=10
     networks:
       - internal_network
+      - traefik_public
 
     dns:
       - 8.8.8.8
