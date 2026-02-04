@@ -176,7 +176,6 @@ services:
 
     networks:
       - mcp_mesh_internal
-      - traefik_public
 
     deploy:
       mode: replicated
@@ -196,14 +195,7 @@ services:
         delay: 5s
         max_attempts: 3
       labels:
-        ## ===== TRAEFIK ROUTING =====
-        - "traefik.enable=true"
-        - "traefik.docker.network=traefik_public"
-        - "traefik.http.routers.slack_mcp.rule=Host(`${SLACK_MCP_DOMAIN}`)"
-        - "traefik.http.routers.slack_mcp.entrypoints=websecure"
-        - "traefik.http.routers.slack_mcp.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.slack_mcp.loadbalancer.server.port=3001"
-        - "traefik.http.services.slack_mcp.loadbalancer.passhostheader=true"
+        - "traefik.enable=false"
 
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
