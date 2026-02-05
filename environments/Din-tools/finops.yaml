@@ -335,15 +335,13 @@ services:
   # ==========================================================================
   # HABITICA SERVER - Backend (awinterstein fork)
   # https://hub.docker.com/r/awinterstein/habitica-server
-  # NOTA: Nome "server" é obrigatório - Caddy do habitica_client espera este nome
+  # NOTA: Em Swarm, o nome DNS é <stack>_<service> (ex: fin_ops_server)
+  #       Aliases de rede NÃO funcionam em Swarm como no Docker Compose
   # ==========================================================================
   server:
     image: *habitica_server_image
     networks:
-      finops_internal:
-        aliases:
-          - server
-          - habitica-server
+      - finops_internal
 
     environment:
       ## ===== BANCO DE DADOS (sem auth - rede interna isolada) =====
@@ -400,8 +398,8 @@ services:
       - traefik_public
 
     environment:
-      ## ===== BACKEND (Caddy usa BACKEND_SERVER, não HABITICA_SERVER) =====
-      - BACKEND_SERVER=server:3000
+      ## ===== BACKEND (nome completo do serviço no Swarm: <stack>_<service>) =====
+      - BACKEND_SERVER=fin_ops_server:3000
 
       ## ===== LOCALIZAÇÃO =====
       - TZ=America/Sao_Paulo
