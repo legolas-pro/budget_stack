@@ -311,7 +311,9 @@ services:
   habitica_server:
     image: *habitica_server_image
     networks:
-      - finops_internal
+      finops_internal:
+        aliases:
+          - server  # Alias necessário para o habitica_client (Caddy espera "server")
 
     environment:
       ## ===== BANCO DE DADOS (sem auth - rede interna isolada) =====
