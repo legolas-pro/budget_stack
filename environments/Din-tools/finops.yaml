@@ -592,6 +592,8 @@ volumes:
     driver: local
   finops_mongodb_data:
     driver: local
+  finops_mongodb_config:
+    driver: local
   finops_firefly_upload:
     driver: local
   finops_actual_data:
