@@ -82,12 +82,15 @@ services:
       start_period: 30s
 
   # ==========================================================================
-  # MONGODB - Banco de Dados para Habitica
+  # MONGODB - Banco de Dados para Habitica (Replica Set para Change Streams)
   # ==========================================================================
   finops_mongodb:
     image: *mongodb_image
     networks:
       - finops_internal
+
+    # Replica Set necessário para Habitica (usa Change Streams)
+    command: ["--replSet", "rs0", "--bind_ip_all"]
 
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-admin}
@@ -96,6 +99,7 @@ services:
 
     volumes:
       - finops_mongodb_data:/data/db
+      - finops_mongodb_config:/data/configdb
 
     deploy:
       mode: replicated
@@ -121,6 +125,49 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # ==========================================================================
+  # MONGODB INIT - Inicializa o Replica Set (executa uma vez)
+  # ==========================================================================
+  finops_mongodb_init:
+    image: *mongodb_image
+    networks:
+      - finops_internal
+
+    command: >
+      bash -c "
+        sleep 10 &&
+        mongosh --host finops_mongodb -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval '
+          rs.status().ok || rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"finops_mongodb:27017\"}]})
+        ' &&
+        echo 'Replica Set initialized' &&
+        sleep infinity
+      "
+
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+
+    depends_on:
+      - finops_mongodb
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
 
   # ==========================================================================
   # FIREFLY III - Gerenciador de Finanças Pessoais
@@ -359,7 +406,7 @@ services:
         - traefik.http.services.finops_habitica.loadbalancer.passhostheader=true
 
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
