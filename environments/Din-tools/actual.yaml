@@ -1,8 +1,8 @@
 version: "3.7"
 
 # ============================================================================
-# STACK: FinOps - Actual Budget
-# VERSÃO: 2.0
+# STACK: Actual Budget - Orçamento Pessoal
+# VERSÃO: 1.0
 # VPS: Din-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
@@ -14,7 +14,7 @@ version: "3.7"
 #   - Actual MCP: Model Context Protocol para Actual Budget
 #
 # DEPLOY:
-#   docker stack deploy -c finops.yaml fin_ops
+#   docker stack deploy -c actual.yaml actual
 #
 # ============================================================================
 
@@ -29,10 +29,10 @@ services:
   # ==========================================================================
   # ACTUAL BUDGET - Orçamento Pessoal (Local-First)
   # ==========================================================================
-  actual:
+  app:
     image: *actual_image
     networks:
-      - finops_internal
+      - actual_internal
       - traefik_public
 
     dns:
@@ -46,7 +46,7 @@ services:
       - TZ=America/Sao_Paulo
 
     volumes:
-      - finops_actual_data:/data
+      - actual_data:/data
 
     deploy:
       mode: replicated
@@ -68,12 +68,12 @@ services:
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik_public
-        - traefik.http.routers.finops_actual.rule=Host(`${ACTUAL_HOST:-actual.dinamopro.com}`)
-        - traefik.http.routers.finops_actual.entrypoints=websecure
-        - traefik.http.routers.finops_actual.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.finops_actual.service=finops_actual
-        - traefik.http.services.finops_actual.loadbalancer.server.port=5006
-        - traefik.http.services.finops_actual.loadbalancer.passhostheader=true
+        - traefik.http.routers.actual.rule=Host(`${ACTUAL_HOST:-actual.dinamopro.com}`)
+        - traefik.http.routers.actual.entrypoints=websecure
+        - traefik.http.routers.actual.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.actual.service=actual
+        - traefik.http.services.actual.loadbalancer.server.port=5006
+        - traefik.http.services.actual.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD", "node", "src/scripts/health-check.js"]
@@ -87,27 +87,27 @@ services:
   # https://github.com/s-stefanov/actual-mcp
   # DESCOMENTE PARA ATIVAR
   # ==========================================================================
-  # actual_mcp:
+  # mcp:
   #   image: *actual_mcp_image
   #   command: ["--sse", "--enable-write"]
   #   networks:
-  #     - finops_internal
+  #     - actual_internal
   #
   #   ports:
   #     - "${ACTUAL_MCP_PORT:-3001}:3000"
   #
   #   environment:
-  #     - ACTUAL_SERVER_URL=http://actual:5006
+  #     - ACTUAL_SERVER_URL=http://app:5006
   #     - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
   #     - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
   #     - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
   #     - TZ=America/Sao_Paulo
   #
   #   volumes:
-  #     - finops_actual_mcp_data:/data
+  #     - actual_mcp_data:/data
   #
   #   depends_on:
-  #     - actual
+  #     - app
   #
   #   deploy:
   #     mode: replicated
@@ -138,16 +138,16 @@ services:
 # VOLUMES
 # ============================================================================
 volumes:
-  finops_actual_data:
+  actual_data:
     driver: local
-  # finops_actual_mcp_data:
+  # actual_mcp_data:
   #   driver: local
 
 # ============================================================================
 # NETWORKS
 # ============================================================================
 networks:
-  finops_internal:
+  actual_internal:
     driver: overlay
     internal: true
   traefik_public:
