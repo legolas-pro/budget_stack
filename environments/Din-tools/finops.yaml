@@ -365,6 +365,9 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+      # dnsrr: DNS round-robin (resolve diretamente para IPs dos containers)
+      # Melhor compatibilidade com service discovery em overlay networks
+      endpoint_mode: dnsrr
       placement:
         constraints:
           - node.role == manager
@@ -397,10 +400,11 @@ services:
       - finops_internal
       - traefik_public
 
-    environment:
-      ## ===== BACKEND (nome completo do serviço no Swarm: <stack>_<service>) =====
-      - BACKEND_SERVER=fin_ops_server:3000
+    configs:
+      - source: habitica_caddyfile
+        target: /etc/caddy/Caddyfile
 
+    environment:
       ## ===== LOCALIZAÇÃO =====
       - TZ=America/Sao_Paulo
 
@@ -599,6 +603,18 @@ services:
   #     timeout: 10s
   #     retries: 3
   #     start_period: 60s
+
+# ============================================================================
+# CONFIGS
+# ============================================================================
+configs:
+  habitica_caddyfile:
+    content: |
+      # Caddyfile customizado para Habitica Client em Docker Swarm
+      # Usa tasks.<service> para resolver diretamente os IPs das tarefas
+      :80 {
+        reverse_proxy tasks.fin_ops_server:3000
+      }
 
 # ============================================================================
 # VOLUMES
