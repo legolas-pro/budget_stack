@@ -17,10 +17,6 @@ networks:
 volumes:
   mcp_mesh_pgdata:
     driver: local
-  slack_mcp_users_cache:
-    driver: local
-  slack_mcp_channels_cache:
-    driver: local
 
 services:
 
@@ -170,12 +166,9 @@ services:
       # - SLACK_MCP_ADD_MESSAGE_TOOL=true
       - SLACK_MCP_LOG_LEVEL=${SLACK_MCP_LOG_LEVEL:-info}
 
-    volumes:
-      - slack_mcp_users_cache:/app/.users_cache.json
-      - slack_mcp_channels_cache:/app/.channels_cache.json
-
     networks:
       - mcp_mesh_internal
+      - traefik_public
 
     deploy:
       mode: replicated
@@ -196,10 +189,3 @@ services:
         max_attempts: 3
       labels:
         - "traefik.enable=false"
-
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
