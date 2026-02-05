@@ -126,24 +126,51 @@ services:
 
   # ==========================================================================
   # MONGODB INIT - Inicializa o Replica Set (executa uma vez)
+  # Especifica explicitamente o hostname do membro para Swarm overlay network
   # ==========================================================================
   finops_mongodb_init:
     image: *mongodb_image
     networks:
-      - finops_internal
+      finops_internal:
+        aliases:
+          - mongodb_init
 
     command: >
       bash -c "
-        sleep 15 &&
-        mongosh --host finops_mongodb --eval '
+        echo '[MongoDB Init] Aguardando MongoDB ficar disponível...' &&
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if mongosh --host finops_mongodb --quiet --eval 'db.adminCommand(\"ping\")' > /dev/null 2>&1; then
+            echo '[MongoDB Init] MongoDB está respondendo!' &&
+            break
+          fi
+          echo \"[MongoDB Init] Tentativa $$i/10 - aguardando 5s...\" &&
+          sleep 5
+        done &&
+        echo '[MongoDB Init] Verificando status do replica set...' &&
+        mongosh --host finops_mongodb --quiet --eval '
           try {
-            rs.status();
-            print(\"Replica set already initialized\");
+            var status = rs.status();
+            if (status.ok === 1) {
+              print(\"[MongoDB Init] Replica set já inicializado. Estado: \" + status.myState);
+              print(\"[MongoDB Init] Members: \" + JSON.stringify(status.members.map(m => m.name)));
+            }
           } catch(e) {
-            rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"finops_mongodb:27017\"}]});
-            print(\"Replica set initialized\");
+            print(\"[MongoDB Init] Replica set não inicializado. Iniciando...\");
+            var config = {
+              _id: \"rs0\",
+              members: [{ _id: 0, host: \"finops_mongodb:27017\" }]
+            };
+            var result = rs.initiate(config);
+            print(\"[MongoDB Init] rs.initiate() resultado: \" + JSON.stringify(result));
+            if (result.ok === 1) {
+              print(\"[MongoDB Init] Aguardando eleição de PRIMARY...\");
+              sleep(5000);
+              var newStatus = rs.status();
+              print(\"[MongoDB Init] Estado atual: \" + newStatus.myState);
+            }
           }
         ' &&
+        echo '[MongoDB Init] Concluído. Mantendo container ativo...' &&
         sleep infinity
       "
 
@@ -159,14 +186,14 @@ services:
       resources:
         limits:
           cpus: "0.1"
-          memory: 64M
+          memory: 128M
         reservations:
           cpus: "0.05"
-          memory: 32M
+          memory: 64M
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 5
+        max_attempts: 10
 
   # ==========================================================================
   # FIREFLY III - Gerenciador de Finanças Pessoais
