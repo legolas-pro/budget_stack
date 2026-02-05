@@ -441,6 +441,10 @@ services:
   # HABITICA MCP - Model Context Protocol para Habitica (ACESSO INTERNO)
   # https://github.com/iBreaker/habitica-mcp-server
   # Usa supergateway para converter stdio → SSE
+  #
+  # NOTA: Desativado (replicas: 0) - URL hardcoded para habitica.com
+  #       Para usar com self-hosted, criar fork com HABITICA_API_URL configurável
+  #       Para ativar: altere replicas para 1
   # ==========================================================================
   habitica_mcp:
     image: *supergateway_image
@@ -458,6 +462,8 @@ services:
 
     environment:
       ## ===== CREDENCIAIS HABITICA =====
+      ## Para habitica.com: obter em https://habitica.com/user/settings/api
+      ## Para self-hosted: aguardando fork com suporte a URL customizada
       - HABITICA_USER_ID=${HABITICA_USER_ID}
       - HABITICA_API_TOKEN=${HABITICA_API_TOKEN}
 
@@ -469,7 +475,7 @@ services:
 
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 0  # DESATIVADO - altere para 1 quando tiver fork com suporte self-hosted
       placement:
         constraints:
           - node.role == manager
