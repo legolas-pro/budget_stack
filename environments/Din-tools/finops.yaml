@@ -335,13 +335,12 @@ services:
   # ==========================================================================
   # HABITICA SERVER - Backend (awinterstein fork)
   # https://hub.docker.com/r/awinterstein/habitica-server
+  # NOTA: Nome "server" é obrigatório - Caddy do habitica_client espera este nome
   # ==========================================================================
-  habitica_server:
+  server:
     image: *habitica_server_image
     networks:
-      finops_internal:
-        aliases:
-          - server  # Alias necessário para o habitica_client (Caddy espera "server")
+      - finops_internal
 
     environment:
       ## ===== BANCO DE DADOS (sem auth - rede interna isolada) =====
@@ -399,13 +398,13 @@ services:
 
     environment:
       ## ===== BACKEND =====
-      - HABITICA_SERVER=http://habitica_server:3000
+      - HABITICA_SERVER=http://server:3000
 
       ## ===== LOCALIZAÇÃO =====
       - TZ=America/Sao_Paulo
 
     depends_on:
-      - habitica_server
+      - server
 
     deploy:
       mode: replicated
