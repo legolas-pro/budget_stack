@@ -340,7 +340,10 @@ services:
   server:
     image: *habitica_server_image
     networks:
-      - finops_internal
+      finops_internal:
+        aliases:
+          - server
+          - habitica-server
 
     environment:
       ## ===== BANCO DE DADOS (sem auth - rede interna isolada) =====
@@ -397,8 +400,8 @@ services:
       - traefik_public
 
     environment:
-      ## ===== BACKEND =====
-      - HABITICA_SERVER=http://server:3000
+      ## ===== BACKEND (Caddy usa BACKEND_SERVER, não HABITICA_SERVER) =====
+      - BACKEND_SERVER=server:3000
 
       ## ===== LOCALIZAÇÃO =====
       - TZ=America/Sao_Paulo
