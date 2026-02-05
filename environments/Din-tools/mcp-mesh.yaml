@@ -188,4 +188,8 @@ services:
         delay: 5s
         max_attempts: 3
       labels:
-        - "traefik.enable=false"
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.slack_mcp.rule=Host(`slack_mcp_server`)"
+        - "traefik.http.routers.slack_mcp.entrypoints=web"
+        - "traefik.http.services.slack_mcp.loadbalancer.server.port=3001"
