@@ -185,11 +185,11 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: "0.1"
-          memory: 128M
+          cpus: "0.5"
+          memory: 512M
         reservations:
-          cpus: "0.05"
-          memory: 64M
+          cpus: "0.1"
+          memory: 256M
       restart_policy:
         condition: on-failure
         delay: 10s
@@ -345,8 +345,9 @@ services:
 
     environment:
       ## ===== BANCO DE DADOS (sem auth - rede interna isolada) =====
+      ## Timeouts aumentados para aguardar replica set inicializar
       - NODE_ENV=production
-      - NODE_DB_URI=mongodb://finops_mongodb:27017/${HABITICA_DB_NAME:-habitica}?replicaSet=rs0
+      - NODE_DB_URI=mongodb://finops_mongodb:27017/${HABITICA_DB_NAME:-habitica}?replicaSet=rs0&serverSelectionTimeoutMS=120000&connectTimeoutMS=30000&socketTimeoutMS=360000
 
       ## ===== APLICAÇÃO =====
       - BASE_URL=https://${HABITICA_HOST:-habitica.dinamopro.com}
@@ -376,15 +377,15 @@ services:
           memory: 256M
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 30s
+        max_attempts: 5
 
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/v3/status || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 120s
+      retries: 5
+      start_period: 180s
 
   # ==========================================================================
   # HABITICA CLIENT - Frontend (awinterstein fork)
