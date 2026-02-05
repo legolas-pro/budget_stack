@@ -168,6 +168,7 @@ services:
 
     networks:
       - mcp_mesh_internal
+      - traefik_public
 
     deploy:
       mode: replicated
