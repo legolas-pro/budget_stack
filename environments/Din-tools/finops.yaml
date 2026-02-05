@@ -27,8 +27,8 @@ version: "3.7"
 # IMAGENS (altere as versões aqui)
 # ============================================================================
 x-images:
-  mariadb: &mariadb_image mariadb:11
-  firefly: &firefly_image fireflyiii/core:latest
+  mariadb: &mariadb_image mariadb:lts
+  firefly: &firefly_image fireflyiii/core:version-6
   alpine: &alpine_image alpine:3.19
   actual: &actual_image actualbudget/actual-server:latest
   actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest
