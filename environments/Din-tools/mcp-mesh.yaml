@@ -100,6 +100,8 @@ services:
     networks:
       - mcp_mesh_internal
       - traefik_public
+    ports:
+      - "5163:3001"
 
     depends_on:
       - mcp_mesh_db
