@@ -1,5 +1,0 @@
-# Caddyfile customizado para Habitica Client em Docker Swarm
-# Usa tasks.<service> para resolver diretamente os IPs das tarefas
-:80 {
-  reverse_proxy tasks.fin_ops_server:3000
-}
