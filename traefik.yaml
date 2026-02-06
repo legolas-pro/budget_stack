@@ -1,0 +1,111 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Traefik - Reverse Proxy Global
+# VERSÃO: 1.0 - Stack base para todos os environments
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Deploy: docker stack deploy -c traefik.yaml traefik
+# Pre-requisito: docker network create --driver=overlay --attachable traefik_public
+#                docker volume create traefik_certs
+# ============================================================================
+
+x-images:
+  traefik: &traefik_image ${TRAEFIK_IMAGE:-traefik:v3.3}
+
+services:
+  traefik:
+    image: *traefik_image
+    networks:
+      - traefik_public
+
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+
+    command:
+      ## ===== API / DASHBOARD =====
+      - --api.dashboard=${TRAEFIK_DASHBOARD_ENABLED:-true}
+      - --api.insecure=false
+
+      ## ===== PROVIDERS =====
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=traefik_public
+
+      ## ===== ENTRYPOINTS =====
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      - --entrypoints.websecure.http.tls.certresolver=letsencryptresolver
+
+      ## ===== CERTIFICADOS (Let's Encrypt) =====
+      - --certificatesresolvers.letsencryptresolver.acme.email=${ACME_EMAIL:-legolas@dinamopro.com}
+      - --certificatesresolvers.letsencryptresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencryptresolver.acme.httpchallenge.entrypoint=web
+
+      ## ===== LOGS =====
+      - --log.level=${TRAEFIK_LOG_LEVEL:-WARN}
+      - --accesslog=${TRAEFIK_ACCESS_LOG:-false}
+
+      ## ===== PING (healthcheck) =====
+      - --ping=true
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "${TRAEFIK_CPU_LIMIT:-1.0}"
+          memory: ${TRAEFIK_MEM_LIMIT:-512M}
+        reservations:
+          cpus: "${TRAEFIK_CPU_RESERVATION:-0.25}"
+          memory: ${TRAEFIK_MEM_RESERVATION:-128M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - traefik.enable=${TRAEFIK_DASHBOARD_EXPOSE:-false}
+        - traefik.http.routers.traefik_dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST:-traefik.dinamopro.com}`)
+        - traefik.http.routers.traefik_dashboard.entrypoints=websecure
+        - traefik.http.routers.traefik_dashboard.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.traefik_dashboard.service=api@internal
+        - traefik.http.services.traefik_dashboard.loadbalancer.server.port=8080
+
+    healthcheck:
+      test: ["CMD-SHELL", "traefik healthcheck --ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  traefik_certs:
+    external: true
+    name: traefik_certs
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  traefik_public:
+    external: true
+    name: traefik_public
