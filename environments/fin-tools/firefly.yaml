@@ -3,7 +3,7 @@ version: "3.7"
 # ============================================================================
 # STACK: Firefly III - Gerenciador de Finanças Pessoais
 # VERSÃO: 1.0
-# VPS: Din-tools
+# VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 #
@@ -75,7 +75,9 @@ services:
     image: *firefly_image
     networks:
       - firefly_internal
-      - traefik_public
+
+    ports:
+      - "${FIREFLY_PORT:-8080}:8080"
 
     dns:
       - 8.8.8.8
@@ -94,7 +96,7 @@ services:
 
       ## ===== APLICAÇÃO =====
       - APP_KEY=${FIREFLY_APP_KEY}
-      - APP_URL=https://${FIREFLY_HOST:-firefly.dinamopro.com}
+      - APP_URL=http://localhost:${FIREFLY_PORT:-8080}
       - TRUSTED_PROXIES=**
       - APP_ENV=production
       - APP_DEBUG=false
@@ -149,15 +151,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      labels:
-        - traefik.enable=true
-        - traefik.docker.network=traefik_public
-        - traefik.http.routers.firefly.rule=Host(`${FIREFLY_HOST:-firefly.dinamopro.com}`)
-        - traefik.http.routers.firefly.entrypoints=websecure
-        - traefik.http.routers.firefly.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.firefly.service=firefly
-        - traefik.http.services.firefly.loadbalancer.server.port=8080
-        - traefik.http.services.firefly.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
@@ -221,6 +214,3 @@ networks:
   firefly_internal:
     driver: overlay
     internal: true
-  traefik_public:
-    external: true
-    name: traefik_public

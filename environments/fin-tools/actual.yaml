@@ -3,7 +3,7 @@ version: "3.7"
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
 # VERSÃO: 1.0
-# VPS: Din-tools
+# VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 #
@@ -33,7 +33,9 @@ services:
     image: *actual_image
     networks:
       - actual_internal
-      - traefik_public
+
+    ports:
+      - "${ACTUAL_PORT:-5006}:5006"
 
     dns:
       - 8.8.8.8
@@ -65,15 +67,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      labels:
-        - traefik.enable=true
-        - traefik.docker.network=traefik_public
-        - traefik.http.routers.actual.rule=Host(`${ACTUAL_HOST:-actual.dinamopro.com}`)
-        - traefik.http.routers.actual.entrypoints=websecure
-        - traefik.http.routers.actual.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.actual.service=actual
-        - traefik.http.services.actual.loadbalancer.server.port=5006
-        - traefik.http.services.actual.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD", "node", "src/scripts/health-check.js"]
@@ -150,6 +143,3 @@ networks:
   actual_internal:
     driver: overlay
     internal: true
-  traefik_public:
-    external: true
-    name: traefik_public

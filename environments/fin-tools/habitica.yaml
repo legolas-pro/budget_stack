@@ -3,7 +3,7 @@ version: "3.7"
 # ============================================================================
 # STACK: Habitica - Gamificação de Hábitos
 # VERSÃO: 1.0
-# VPS: Din-tools
+# VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 #
@@ -153,7 +153,7 @@ services:
       - NODE_DB_URI=mongodb://mongodb:27017/${HABITICA_DB_NAME:-habitica}?replicaSet=rs0&serverSelectionTimeoutMS=120000&connectTimeoutMS=30000&socketTimeoutMS=360000
 
       ## ===== APLICAÇÃO =====
-      - BASE_URL=https://${HABITICA_HOST:-habitica.dinamopro.com}
+      - BASE_URL=http://localhost:${HABITICA_PORT:-80}
       - ADMIN_EMAIL=${HABITICA_ADMIN_EMAIL:-admin@dinamopro.com}
 
       ## ===== SESSÃO =====
@@ -199,7 +199,9 @@ services:
     image: *habitica_client_image
     networks:
       - habitica_internal
-      - traefik_public
+
+    ports:
+      - "${HABITICA_PORT:-80}:80"
 
     environment:
       ## ===== BACKEND =====
@@ -230,15 +232,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      labels:
-        - traefik.enable=true
-        - traefik.docker.network=traefik_public
-        - traefik.http.routers.habitica.rule=Host(`${HABITICA_HOST:-habitica.dinamopro.com}`)
-        - traefik.http.routers.habitica.entrypoints=websecure
-        - traefik.http.routers.habitica.tls.certresolver=letsencryptresolver
-        - traefik.http.routers.habitica.service=habitica
-        - traefik.http.services.habitica.loadbalancer.server.port=80
-        - traefik.http.services.habitica.loadbalancer.passhostheader=true
 
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
@@ -263,6 +256,3 @@ networks:
   habitica_internal:
     driver: overlay
     internal: true
-  traefik_public:
-    external: true
-    name: traefik_public
