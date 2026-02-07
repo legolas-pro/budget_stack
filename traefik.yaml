@@ -37,9 +37,9 @@ services:
       - --api.insecure=false
 
       ## ===== PROVIDERS =====
-      - --providers.docker.swarmMode=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=traefik_public
+      - --providers.swarm=true
+      - --providers.exposedbydefault=false
+      - --providers.network=traefik_public
 
       ## ===== ENTRYPOINTS =====
       - --entrypoints.web.address=:80
