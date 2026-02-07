@@ -37,7 +37,6 @@ services:
       - --api.insecure=false
 
       ## ===== PROVIDERS =====
-      - --providers.docker=true
       - --providers.docker.swarmMode=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=traefik_public
