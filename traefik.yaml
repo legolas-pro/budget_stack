@@ -38,8 +38,8 @@ services:
 
       ## ===== PROVIDERS =====
       - --providers.swarm=true
-      - --providers.exposedbydefault=false
-      - --providers.network=traefik_public
+      - --providers.swarm.exposedbydefault=false
+      - --providers.swarm.network=traefik_public
 
       ## ===== ENTRYPOINTS =====
       - --entrypoints.web.address=:80
