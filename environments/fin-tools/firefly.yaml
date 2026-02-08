@@ -24,6 +24,7 @@ x-images:
   mariadb: &mariadb_image mariadb:11.4
   firefly: &firefly_image fireflyiii/core:version-6
   alpine: &alpine_image alpine:3.19
+  lampyrid: &lampyrid_image ghcr.io/radcod3/lampyrid:latest
 
 services:
   # ==========================================================================
@@ -197,6 +198,55 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
+
+  # ==========================================================================
+  # LAMPYRID MCP - Model Context Protocol para Firefly III (ACESSO INTERNO)
+  # https://github.com/RadCod3/LamPyrid
+  # ==========================================================================
+  mcp:
+    image: *lampyrid_image
+    networks:
+      - firefly_internal
+
+    ports:
+      - "${LAMPYRID_MCP_PORT:-3002}:3000"
+
+    environment:
+      - FIREFLY_BASE_URL=http://app:8080
+      - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
+      - MCP_TRANSPORT=sse
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=3000
+      - LOGGING_LEVEL=${LAMPYRID_LOG_LEVEL:-INFO}
+      - TZ=America/Sao_Paulo
+
+    depends_on:
+      - app
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 # ============================================================================
 # VOLUMES
