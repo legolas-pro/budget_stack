@@ -2,9 +2,9 @@ version: "3.8"
 
 # ============================================================================
 # STACK: DuckDB + Duck-UI
-# VERSÃO: 1.0
+# VERSÃO: 2.0
 # ============================================================================
-# Motor analítico DuckDB com interface web Duck-UI
+# Motor analítico DuckDB com MCP server e interface web Duck-UI
 # Acesso via Cloudflared (sem Traefik) - porta local exposta
 #
 # DEPLOY:
@@ -23,15 +23,19 @@ x-images:
 services:
 
   # ==========================================================================
-  # DuckDB CLI - Motor analítico (utilitário / ad-hoc queries)
+  # DuckDB - Motor analítico + MCP Server
   # ==========================================================================
   duckdb:
     image: *duckdb_image
+    tty: true
     volumes:
       - duckdb_data:${DUCKDB_DATA_PATH:-/data}
     networks:
       - duckdb_internal
-    entrypoint: ["sleep", "infinity"]
+    ports:
+      - "${DUCKDB_MCP_PORT:-3099}:3099"
+    entrypoint: /duckdb
+    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db}
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
     deploy:
