@@ -80,52 +80,52 @@ services:
   # https://github.com/s-stefanov/actual-mcp
   # DESCOMENTE PARA ATIVAR
   # ==========================================================================
-  # mcp:
-  #   image: *actual_mcp_image
-  #   command: ["--sse", "--enable-write"]
-  #   networks:
-  #     - actual_internal
-  #
-  #   ports:
-  #     - "${ACTUAL_MCP_PORT:-3001}:3000"
-  #
-  #   environment:
-  #     - ACTUAL_SERVER_URL=http://app:5006
-  #     - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-  #     - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
-  #     - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
-  #     - TZ=America/Sao_Paulo
-  #
-  #   volumes:
-  #     - actual_mcp_data:/data
-  #
-  #   depends_on:
-  #     - app
-  #
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 256M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
+  mcp:
+    image: *actual_mcp_image
+    command: ["--sse", "--enable-write"]
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_MCP_PORT:-3001}:3000"
+
+    environment:
+      - ACTUAL_SERVER_URL=http://app:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
+      - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
+      - TZ=America/Sao_Paulo
+
+    volumes:
+      - actual_mcp_data:/data
+
+    depends_on:
+      - app
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 # ============================================================================
 # VOLUMES
@@ -133,8 +133,8 @@ services:
 volumes:
   actual_data:
     driver: local
-  # actual_mcp_data:
-  #   driver: local
+  actual_mcp_data:
+    driver: local
 
 # ============================================================================
 # NETWORKS
