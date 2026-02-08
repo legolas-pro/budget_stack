@@ -35,7 +35,7 @@ services:
     ports:
       - "${DUCKDB_MCP_PORT:-3099}:3099"
     entrypoint: /duckdb
-    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db}
+    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db} -cmd "INSTALL duckdb_mcp FROM community; LOAD duckdb_mcp; SELECT mcp_server_start('tcp', '0.0.0.0', 3099);"
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
     deploy:
