@@ -33,9 +33,9 @@ services:
     networks:
       - duckdb_internal
     ports:
-      - "${DUCKDB_MCP_PORT:-3099}:3099"
+      - "${DUCKDB_MCP_PORT:-3099}:${DUCKDB_MCP_INTERNAL_PORT:-3099}"
     entrypoint: /duckdb
-    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db} -cmd "INSTALL duckdb_mcp FROM community; LOAD duckdb_mcp; SELECT mcp_server_start('tcp', '0.0.0.0', 3099);"
+    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db} -cmd "INSTALL duckdb_mcp FROM community; LOAD duckdb_mcp; SELECT mcp_server_start('tcp', '0.0.0.0', ${DUCKDB_MCP_INTERNAL_PORT:-3099});"
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
     deploy:
@@ -62,7 +62,7 @@ services:
   duck-ui:
     image: *duck_ui_image
     ports:
-      - "${DUCK_UI_PORT:-3088}:3000"
+      - "${DUCK_UI_PORT:-3088}:${DUCK_UI_INTERNAL_PORT:-5522}"
     volumes:
       - duckdb_data:${DUCKDB_DATA_PATH:-/data}
     environment:
