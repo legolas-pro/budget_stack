@@ -31,7 +31,7 @@ services:
       - duckdb_data:${DUCKDB_DATA_PATH:-/data}
     networks:
       - duckdb_internal
-    entrypoint: ["tail", "-f", "/dev/null"]
+    entrypoint: ["sleep", "infinity"]
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
     deploy:
