@@ -9,9 +9,10 @@ version: "3.7"
 #
 # SERVIÇOS ATIVOS:
 #   - Actual Budget: Orçamento pessoal local-first (Node.js/SQLite)
+#   - Actual HTTP API: REST API para integração com N8N
 #
-# SERVIÇOS COMENTADOS (MCPs - descomente para ativar):
-#   - Actual MCP: Model Context Protocol para Actual Budget
+# SERVIÇOS COMENTADOS:
+#   - Actual MCP: Incompatível com API atual do Actual Budget
 #
 # DEPLOY:
 #   docker stack deploy -c actual.yaml actual
@@ -23,7 +24,8 @@ version: "3.7"
 # ============================================================================
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
-  actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest
+  # actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest  # INCOMPATÍVEL com API atual
+  actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
 
 services:
   # ==========================================================================
@@ -76,28 +78,67 @@ services:
       start_period: 20s
 
   # ==========================================================================
-  # ACTUAL MCP - Model Context Protocol para N8N (ACESSO INTERNO)
+  # ACTUAL MCP - COMENTADO (incompatível com API atual do Actual)
   # https://github.com/s-stefanov/actual-mcp
-  # DESCOMENTE PARA ATIVAR
   # ==========================================================================
-  mcp:
-    image: *actual_mcp_image
-    command: ["--sse", "--enable-write"]
+  # mcp:
+  #   image: *actual_mcp_image
+  #   command: ["--sse", "--enable-write"]
+  #   networks:
+  #     - actual_internal
+  #   ports:
+  #     - "${ACTUAL_MCP_PORT:-3001}:3000"
+  #   environment:
+  #     - ACTUAL_SERVER_URL=http://app:5006
+  #     - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+  #     - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
+  #     - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
+  #     - TZ=America/Sao_Paulo
+  #   volumes:
+  #     - actual_mcp_data:/data
+  #   depends_on:
+  #     - app
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 10s
+  #       max_attempts: 5
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/sse || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     start_period: 60s
+  #     retries: 5
+
+  # ==========================================================================
+  # ACTUAL HTTP API - REST API para integração com N8N
+  # https://github.com/jhonderson/actual-http-api
+  # ==========================================================================
+  api:
+    image: *actual_http_api_image
     networks:
       - actual_internal
 
     ports:
-      - "${ACTUAL_MCP_PORT:-3001}:3000"
+      - "${ACTUAL_API_PORT:-5007}:5007"
 
     environment:
       - ACTUAL_SERVER_URL=http://app:5006
       - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
-      - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
       - TZ=America/Sao_Paulo
-
-    volumes:
-      - actual_mcp_data:/data
 
     depends_on:
       - app
@@ -111,7 +152,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: "0.1"
           memory: 128M
@@ -121,11 +162,11 @@ services:
         max_attempts: 5
 
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/sse || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5007 || exit 1"]
       interval: 30s
       timeout: 10s
-      start_period: 60s
-      retries: 5
+      start_period: 30s
+      retries: 3
 
 # ============================================================================
 # VOLUMES
@@ -133,8 +174,8 @@ services:
 volumes:
   actual_data:
     driver: local
-  actual_mcp_data:
-    driver: local
+  # actual_mcp_data:
+  #   driver: local
 
 # ============================================================================
 # NETWORKS
