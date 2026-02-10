@@ -1,0 +1,42 @@
+● Boa pergunta. Vou ser transparente — foram vários problemas encadeados:                                                                                                                 
+                                                                                                                                                                                          
+  1. Pull de imagens Docker via Swarm (~15 min)                                                                                                                                           
+                  
+  O Swarm faz o pull de imagens de forma diferente do docker pull direto. Ele usa seu próprio mecanismo interno e ficou travado tentando baixar a imagem do Ollama. Quando fiz o docker   
+  pull manual, baixou rápido. Sua conexão tem latência alta (~130-170ms para 8.8.8.8), o que agrava.                                                                                      
+
+  2. Healthcheck com curl que não existia (~10 min perdidos)
+
+  Eu coloquei um healthcheck usando curl, mas a imagem do Ollama não tem curl instalado. O Swarm ficava vendo o container como "unhealthy" e reiniciando em loop. Demorei alguns ciclos
+  para identificar isso.
+
+  3. Open WebUI com OOM kill (exit 137) (~10 min perdidos)
+
+  Coloquei um limite de 2GB de RAM no Open WebUI, mas ele precisa de mais na inicialização. Ficou sendo morto pelo kernel (OOM) e reiniciando. Removi o limite e resolveu.
+
+  4. Open WebUI tentando baixar modelos do HuggingFace (~5 min)
+
+  Por padrão, o Open WebUI tenta baixar modelos de embedding do HuggingFace na inicialização. O DNS interno do Swarm não conseguia resolver transfer.xethub.hf.co, então ficava travado.
+  Resolvi apontando o embedding engine para o Ollama.
+
+  5. Routing mesh do Swarm (ingress) não roteava
+
+  A porta publicada no modo ingress (padrão do Swarm) não respondia ao curl do host. Mudei para mode: host e resolveu.
+
+  6. Download do modelo Llama 3.1 (~20 min)
+
+  Esse era inevitável — 4.9 GB a ~3.5 MB/s pela sua conexão.
+
+  ---
+  O que eu deveria ter feito diferente
+
+  - Fazer docker pull manual antes de dar docker stack deploy
+  - Não usar curl em healthchecks sem verificar se existe na imagem
+  - Não colocar limite de memória no Open WebUI sem saber o consumo real
+  - Usar mode: host desde o início num setup single-node
+  - Desabilitar o download de embeddings do HuggingFace desde o começo
+
+  Foram ~20 minutos de problemas evitáveis e ~20 de downloads legítimos. Peço desculpas pela demora — mas o lado bom é que o compose final já está corrigido e vai funcionar limpo em
+  qualquer redeploy futuro.
+
+──────────────────────────────────

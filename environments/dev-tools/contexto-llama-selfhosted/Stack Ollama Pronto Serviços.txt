@@ -1,0 +1,60 @@
+  Stack Ollama - Pronto                                                                                                                                                                   
+                                                                                                                                                                                          
+  Serviços rodando (Docker Swarm)                                                                                                                                                         
+  ┌────────────┬────────┬────────────────────────┐                                                                                                                                        
+  │  Serviço   │ Status │         Acesso         │                                                                                                                                        
+  ├────────────┼────────┼────────────────────────┤
+  │ Ollama     │ 1/1    │ http://localhost:11434 │
+  ├────────────┼────────┼────────────────────────┤
+  │ Open WebUI │ 1/1    │ http://localhost:3000  │
+  └────────────┴────────┴────────────────────────┘
+  Modelo instalado
+  ┌──────────────────────────────┬─────────┬─────────────────────┐
+  │            Modelo            │ Tamanho │     Velocidade      │
+  ├──────────────────────────────┼─────────┼─────────────────────┤
+  │ Llama 3.1 8B Instruct Q4_K_M │ 4.9 GB  │ ~3.6 tokens/s (CPU) │
+  └──────────────────────────────┴─────────┴─────────────────────┘
+  Integração com n8n
+
+  No n8n (http://localhost:5678), use o nó Ollama ou HTTP Request com:
+  - URL interna (entre containers): http://ollama:11434 (se estiver na mesma rede overlay, senão use http://host.docker.internal:11434 ou o IP da máquina http://192.168.68.115:11434)
+  - Modelo: llama3.1:8b-instruct-q4_K_M
+
+  Arquivo do stack
+
+  /home/familia/stacks/ollama/docker-compose.yml
+
+  Observação sobre performance
+
+  ~3.6 tokens/s é utilizável para automações n8n (classificação, extração, resumos curtos) mas lento para conversas longas. Se precisar de mais velocidade, posso instalar um modelo menor
+   como Phi-3.5 Mini 3.8B (~7-10 tokens/s) ou Qwen2.5 3B (~10-12 tokens/s) como alternativa para tarefas mais simples.
+
+✻ Brewed for 1h 34m 26s
+
+● Background command "Check pull progress" completed (exit code 0)
+
+● Essa é apenas uma notificação de uma task antiga de monitoramento que finalizou em background — o setup já está completo e tudo rodando.
+                                                                                                                
+  Quer que eu instale algum modelo adicional menor para tarefas rápidas no n8n, ou que eu configure a conexão do Ollama direto no seu n8n?
+                                                                                                                                                                                          
+● Background command "Force Swarm to redeploy ollama with local image" failed with exit code 1
+                                                                                                                                                                                          
+● Outra notificação de task antiga que ficou em background — esse service update --force já foi superado pelos deploys subsequentes. Tudo já está rodando normalmente:
+                                                                                                                
+  - Ollama 1/1 em localhost:11434
+  - Open WebUI 1/1 em localhost:3000                                                                                                                                                      
+  - Llama 3.1 8B funcionando a ~3.6 tokens/s
+                                                                                                                                                                                          
+  Nada a corrigir. Precisa de algo mais?
+                                                                                                                                                                                          
+● Background command "Test HTTP from inside with bash" completed (exit code 0)                                                                                                            
+
+● Mais uma notificação de task antiga de diagnóstico — já resolvido. O stack está operacional, nada pendente.
+                                                                            
+● Background command "Check services and test endpoint" failed with exit code 56
+                                                                                                                                                                                          
+● Task antiga de quando o Open WebUI ainda não tinha estabilizado. Já foi resolvido — ambos os serviços estão 1/1 e funcionando.                                                          
+                                                                                                                                                                                          
+● Background command "Pull Llama 3.1 8B model" completed (exit code 0)                                                                                                                    
+                                                                                                                                                                                          
+● Confirmação do pull do Llama 3.1 8B — já concluído com sucesso anteriormente. Tudo operacional.   
