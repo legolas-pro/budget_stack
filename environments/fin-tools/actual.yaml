@@ -136,7 +136,7 @@ services:
 
     environment:
       - ACTUAL_SERVER_URL=http://app:5006
-      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_SERVER_PASSWORD=${ACTUAL_PASSWORD}
       - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
       - TZ=America/Sao_Paulo
 
