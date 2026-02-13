@@ -17,8 +17,6 @@ services:
     environment:
       DB_URL: postgresql://${IMMICH_DB_USER:-immich}:${IMMICH_DB_PASSWORD}@database:5432/${IMMICH_DB_NAME:-immich}
       REDIS_HOSTNAME: redis
-    env_file:
-      - .env
     networks:
       - immich-network
     depends_on:
@@ -40,8 +38,6 @@ services:
     environment:
       DB_URL: postgresql://${IMMICH_DB_USER:-immich}:${IMMICH_DB_PASSWORD}@database:5432/${IMMICH_DB_NAME:-immich}
       REDIS_HOSTNAME: redis
-    env_file:
-      - .env
     networks:
       - immich-network
     depends_on:
@@ -57,8 +53,6 @@ services:
     environment:
       DB_URL: postgresql://${IMMICH_DB_USER:-immich}:${IMMICH_DB_PASSWORD}@database:5432/${IMMICH_DB_NAME:-immich}
       REDIS_HOSTNAME: redis
-    env_file:
-      - .env
     networks:
       - immich-network
     restart: unless-stopped
