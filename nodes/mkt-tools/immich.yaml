@@ -14,6 +14,8 @@ services:
     volumes:
       - ${IMMICH_UPLOAD_LOCATION}:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "${IMMICH_PORT:-2283}:2283"
     environment:
       DB_URL: postgresql://${IMMICH_DB_USER:-immich}:${IMMICH_DB_PASSWORD}@database:5432/${IMMICH_DB_NAME:-immich}
       REDIS_HOSTNAME: redis
