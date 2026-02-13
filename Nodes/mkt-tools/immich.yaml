@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    deploy:
+      replicas: ${IMMICH_SERVER_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: ${IMMICH_SERVER_MEMORY_LIMIT:-2G}
+    command: ['start.sh', 'immich']
+    volumes:
+      - ${IMMICH_UPLOAD_LOCATION:-/srv/immich/upload}:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    networks:
+      - immich-network
+    depends_on:
+      - redis
+      - database
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2283/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  immich-microservices:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    deploy:
+      replicas: ${IMMICH_MICROSERVICES_REPLICAS:-1}
+    command: ['start.sh', 'microservices']
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - .env
+    networks:
+      - immich-network
+    depends_on:
+      - redis
+      - database
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    deploy:
+      replicas: ${IMMICH_ML_REPLICAS:-1}
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - .env
+    networks:
+      - immich-network
+    restart: unless-stopped
+
+  redis:
+    image: ${IMMICH_REDIS_IMAGE:-docker.io/valkey/valkey:9-alpine}
+    deploy:
+      replicas: 1
+    healthcheck:
+      test: redis-cli ping || exit 1
+    networks:
+      - immich-network
+    restart: unless-stopped
+
+  database:
+    image: ${IMMICH_DB_IMAGE:-ghcr.io/immich-app/postgres:16-16.6}
+    deploy:
+      replicas: 1
+    command: postgres -c shared_preload_libraries=vectors.so -c 'search_path="immichpg, public"'
+    environment:
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_USER: ${IMMICH_DB_USERNAME:-immich}
+      POSTGRES_DB: ${IMMICH_DB_NAME:-immich}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - ${IMMICH_DB_DATA_LOCATION:-/srv/immich/db}:/var/lib/postgresql/data
+    networks:
+      - immich-network
+    restart: unless-stopped
+
+  # n8n para automações (webhooks Immich → n8n)
+  n8n:
+    image: ${N8N_IMAGE:-docker.n8n.io/n8nio/n8n:latest}
+    deploy:
+      replicas: ${N8N_REPLICAS:-1}
+      placement:
+        constraints: [node.role == ${N8N_NODE_ROLE:-manager}]
+    restart: always
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-seu-dominio.com}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://seu-dominio.com/}
+      - GENERIC_TIMEZONE=${N8N_TIMEZONE:-America/Sao_Paulo}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres-n8n
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${N8N_DB_NAME:-n8n}
+      - DB_POSTGRESDB_USER=${N8N_DB_USER}
+      - DB_POSTGRESDB_PASSWORD=${N8N_DB_PASSWORD}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres-n8n
+    networks:
+      - immex-network
+      - n8n-network
+
+  postgres-n8n:
+    image: ${N8N_DB_IMAGE:-postgres:16-alpine}
+    deploy:
+      replicas: 1
+    environment:
+      POSTGRES_DB: ${N8N_DB_NAME:-n8n}
+      POSTGRES_USER: ${N8N_DB_USER}
+      POSTGRES_PASSWORD: ${N8N_DB_PASSWORD}
+    volumes:
+      - postgres_n8n_data:/var/lib/postgresql/data
+    networks:
+      - n8n-network
+    restart: always
+
+volumes:
+  postgres_data:
+  model-cache:
+  n8n_data:
+  postgres_n8n_data:
+
+networks:
+  immich-network:
+    driver: overlay
+    attachable: true
+  n8n-network:
+    driver: overlay
+    attachable: true
