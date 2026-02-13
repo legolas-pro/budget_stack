@@ -1,0 +1,114 @@
+❯ me mostra a stack atualizada aqui por favor, preciso documentar                                                                                                                         
+                                                                  
+● Read 2 files (ctrl+o to expand)                                                                                                                                                         
+                                                                                                                                                                                          
+● Aqui estão os dois arquivos:                                                                                                                                                            
+                  
+  docker-compose.yml                                                                                                                                                                      
+                  
+  version: "3.8"                                                                                                                                                                          
+                  
+  services:
+    ollama:
+      image: ollama/ollama:latest
+      ports:
+        - target: 11434
+          published: 11434
+          protocol: tcp
+          mode: host
+      volumes:
+        - ollama_data:/root/.ollama
+      networks:
+        - ollama_internal
+      deploy:
+        mode: replicated
+        replicas: 1
+        placement:
+          constraints: [node.role == manager]
+        resources:
+          limits:
+            memory: 12G
+          reservations:
+            memory: 4G
+
+    open-webui:
+      image: ghcr.io/open-webui/open-webui:main
+      ports:
+        - target: 8080
+          published: 8888
+          protocol: tcp
+          mode: host
+      environment:
+        - OLLAMA_BASE_URL=http://ollama:11434
+        - RAG_EMBEDDING_ENGINE=ollama
+        - RAG_EMBEDDING_MODEL=nomic-embed-text
+        - ENABLE_RAG_WEB_SEARCH=false
+      volumes:
+        - openwebui_data:/app/backend/data
+      networks:
+        - ollama_internal
+      deploy:
+        mode: replicated
+        replicas: 1
+        placement:
+          constraints: [node.role == manager]
+
+    mcpo:
+      image: ghcr.io/open-webui/mcpo:main
+      command: --config /config/mcpo-config.json --port 8000
+      ports:
+        - target: 8000
+          published: 8100
+          protocol: tcp
+          mode: host
+      volumes:
+        - /home/familia/stacks/ollama/mcpo-config.json:/config/mcpo-config.json:ro
+      networks:
+        - ollama_internal
+      deploy:
+        mode: replicated
+        replicas: 1
+        placement:
+          constraints: [node.role == manager]
+
+  networks:
+    ollama_internal:
+      driver: overlay
+
+  volumes:
+    ollama_data:
+    openwebui_data:
+
+  mcpo-config.json
+
+  {
+    "mcpServers": {
+      "actual-budget": {
+        "type": "sse",
+        "url": "http://192.168.68.115:3001/sse"
+      },
+      "firefly-iii": {
+        "type": "sse",
+        "url": "http://192.168.68.115:3002/sse"
+      }
+    }
+  }
+
+  Mapa de portas
+  ┌───────────────────────────┬───────┬──────────────────────────────────────────┐
+  │          Serviço          │ Porta │                  Acesso                  │
+  ├───────────────────────────┼───────┼──────────────────────────────────────────┤
+  │ Ollama API                │ 11434 │ http://localhost:11434                   │
+  ├───────────────────────────┼───────┼──────────────────────────────────────────┤
+  │ Open WebUI                │ 8888  │ http://localhost:8888                    │
+  ├───────────────────────────┼───────┼──────────────────────────────────────────┤
+  │ mcpo (proxy MCP→OpenAPI)  │ 8100  │ http://localhost:8100                    │
+  ├───────────────────────────┼───────┼──────────────────────────────────────────┤
+  │ mcpo - Actual Budget docs │ —     │ http://localhost:8100/actual-budget/docs │
+  ├───────────────────────────┼───────┼──────────────────────────────────────────┤
+  │ mcpo - Firefly III docs   │ —     │ http://localhost:8100/firefly-iii/docs   │
+  └───────────────────────────┴───────┴──────────────────────────────────────────┘
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ agora configura a conexão do ollama no n8n pra mim
+────────────────────────────────────────────────────

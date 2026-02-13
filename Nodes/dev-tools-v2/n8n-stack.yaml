@@ -1,0 +1,353 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: n8n (Stack Unificada de Produção)
+# VERSÃO: 4.0 - Stack unificada com Cloudflared (sem Traefik)
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Uso: docker stack deploy -c n8n-stack.yaml n8n --env-file n8n-stack.env
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  postgres: &postgres_image postgres:14-alpine
+  n8n: &n8n_image n8nio/n8n:latest
+  redis: &redis_image redis:7-alpine
+
+# ============================================================================
+# BLOCO COMUM DE ENVIRONMENT (reutilizado via anchor YAML)
+# ============================================================================
+x-n8n-common-env: &n8n_common_env
+  ## ===== BANCO DE DADOS =====
+  - N8N_FIX_MIGRATIONS=true
+  - DB_TYPE=postgresdb
+  - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
+  - DB_POSTGRESDB_HOST=postgres
+  - DB_POSTGRESDB_PORT=5432
+  - DB_POSTGRESDB_USER=${DB_USER:-postgres}
+  - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
+
+  ## ===== CRIPTOGRAFIA =====
+  - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+
+  ## ===== URLs E ACESSO =====
+  - N8N_HOST=${N8N_HOST}
+  - N8N_EDITOR_BASE_URL=https://${N8N_HOST}/
+  - WEBHOOK_URL=https://${WEBHOOK_HOST}/
+  - N8N_PROTOCOL=https
+  - N8N_ONBOARDING_FLOW_DISABLED=true
+
+  ## ===== EXECUÇÃO =====
+  - NODE_ENV=production
+  - EXECUTIONS_MODE=queue
+  - EXECUTIONS_TIMEOUT=3600
+  - EXECUTIONS_TIMEOUT_MAX=7200
+  - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+  - N8N_RUNNERS_ENABLED=true
+  - N8N_RUNNERS_MODE=internal
+
+  ## ===== PACOTES COMUNITÁRIOS =====
+  - N8N_REINSTALL_MISSING_PACKAGES=true
+  - N8N_COMMUNITY_PACKAGES_ENABLED=true
+  - N8N_NODE_PATH=/home/node/.n8n/nodes
+  - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+
+  ## ===== SMTP =====
+  - N8N_SMTP_SENDER=${SMTP_SENDER}
+  - N8N_SMTP_USER=${SMTP_USER}
+  - N8N_SMTP_PASS=${SMTP_PASSWORD}
+  - N8N_SMTP_HOST=${SMTP_HOST}
+  - N8N_SMTP_PORT=${SMTP_PORT:-465}
+  - N8N_SMTP_SSL=false
+
+  ## ===== REDIS/QUEUE =====
+  - QUEUE_BULL_REDIS_HOST=n8n_redis
+  - QUEUE_BULL_REDIS_PORT=6379
+  - QUEUE_BULL_REDIS_DB=${REDIS_DB:-1}
+
+  ## ===== MÉTRICAS =====
+  - N8N_METRICS=true
+
+  ## ===== LIMPEZA DE DADOS =====
+  - EXECUTIONS_DATA_PRUNE=true
+  - EXECUTIONS_DATA_MAX_AGE=336
+
+  ## ===== IA/OPENAI =====
+  - N8N_AI_ENABLED=true
+  - N8N_AI_PROVIDER=openai
+  - N8N_AI_OPENAI_API_KEY=${OPENAI_API_KEY}
+
+  ## ===== PERMISSÕES =====
+  - NODE_FUNCTION_ALLOW_BUILTIN=*
+  - NODE_FUNCTION_ALLOW_EXTERNAL=moment,lodash,axios
+
+  ## ===== LOCALIZAÇÃO =====
+  - GENERIC_TIMEZONE=America/Sao_Paulo
+  - TZ=America/Sao_Paulo
+  - N8N_DEFAULT_LOCALE=pt-BR
+
+x-n8n-common-dns: &n8n_common_dns
+  dns:
+    - 8.8.8.8
+    - 8.8.4.4
+    - 1.1.1.1
+  dns_search: []
+
+services:
+  # ==========================================================================
+  # POSTGRESQL - Banco de Dados Dedicado para N8N
+  # ==========================================================================
+  postgres:
+    image: *postgres_image
+    networks:
+      - internal_network
+
+    ports:
+      - "${POSTGRES_PORT_EXTERNAL:-5432}:5432"
+
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:-n8n_queue}
+      # Performance tuning
+      - POSTGRES_SHARED_BUFFERS=256MB
+      - POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+      - POSTGRES_MAX_CONNECTIONS=200
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # N8N EDITOR - Interface Principal
+  # Exposto na rede interna para acesso via Cloudflared
+  # ==========================================================================
+  n8n_editor:
+    image: *n8n_image
+    command: start
+    networks:
+      - internal_network
+      - traefik_public
+    <<: *n8n_common_dns
+
+    ports:
+      - "${N8N_EDITOR_PORT:-5678}:5678"
+
+    environment:
+      *n8n_common_env
+
+    depends_on:
+      - postgres
+      - n8n_redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.3"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================================================
+  # N8N WEBHOOK - Processamento de Webhooks
+  # Exposto na rede interna para acesso via Cloudflared
+  # ==========================================================================
+  n8n_webhook:
+    image: *n8n_image
+    command: webhook
+    networks:
+      - internal_network
+      - traefik_public
+    <<: *n8n_common_dns
+
+    ports:
+      - "${N8N_WEBHOOK_PORT:-5679}:5678"
+
+    environment:
+      *n8n_common_env
+
+    depends_on:
+      - postgres
+      - n8n_redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.3"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================================================
+  # N8N WORKER - Processamento de Filas
+  # ==========================================================================
+  n8n_worker:
+    image: *n8n_image
+    command: worker --concurrency=10
+    networks:
+      - internal_network
+      - traefik_public
+    <<: *n8n_common_dns
+
+    environment:
+      *n8n_common_env
+
+    depends_on:
+      - postgres
+      - n8n_redis
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+        reservations:
+          cpus: "0.4"
+          memory: 768M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================================================
+  # REDIS - Sistema de Filas
+  # ==========================================================================
+  n8n_redis:
+    image: *redis_image
+    command:
+      - redis-server
+      - --appendonly yes
+      - --port 6379
+      - --maxmemory 1536mb
+      - --maxmemory-policy allkeys-lru
+      - --save 900 1
+      - --save 300 10
+      - --save 60 10000
+    ports:
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+    networks:
+      - internal_network
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+    volumes:
+      - n8n_redis:/data
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 6379 ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  postgres_data:
+    external: true
+    name: ${STACK_PREFIX:-n8n}_postgres_data
+  n8n_redis:
+    external: true
+    name: ${STACK_PREFIX:-n8n}_redis_data
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  internal_network:
+    driver: overlay
+    internal: true
+  traefik_public:
+    external: true
+    name: traefik_public

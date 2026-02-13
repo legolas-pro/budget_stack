@@ -1,0 +1,258 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Habitica - Gamificação de Hábitos
+# VERSÃO: 1.0
+# VPS: fin-tools
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+#
+# SERVIÇOS:
+#   - Habitica Server: Backend Node.js (awinterstein fork)
+#   - Habitica Client: Frontend com Caddy (awinterstein fork)
+#   - MongoDB: Banco de dados com Replica Set
+#
+# NOTA: O Habitica requer MongoDB com Replica Set para Change Streams
+#
+# DEPLOY:
+#   docker stack deploy -c habitica.yaml habitica
+#
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  mongodb: &mongodb_image mongo:7
+  habitica_server: &habitica_server_image awinterstein/habitica-server:latest
+  habitica_client: &habitica_client_image awinterstein/habitica-client:latest
+
+services:
+  # ==========================================================================
+  # MONGODB - Banco de Dados (Replica Set para Change Streams)
+  # NOTA: Sem autenticação (rede interna isolada)
+  # ==========================================================================
+  mongodb:
+    image: *mongodb_image
+    networks:
+      - habitica_internal
+
+    # Replica Set necessário para Habitica (usa Change Streams)
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+
+    volumes:
+      - habitica_mongodb_data:/data/db
+      - habitica_mongodb_config:/data/configdb
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # MONGODB INIT - Inicializa o Replica Set (executa uma vez)
+  # ==========================================================================
+  mongodb_init:
+    image: *mongodb_image
+    networks:
+      - habitica_internal
+
+    command: >
+      bash -c "
+        echo '[MongoDB Init] Aguardando MongoDB ficar disponível...' &&
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if mongosh --host mongodb --quiet --eval 'db.adminCommand(\"ping\")' > /dev/null 2>&1; then
+            echo '[MongoDB Init] MongoDB está respondendo!' &&
+            break
+          fi
+          echo \"[MongoDB Init] Tentativa $$i/10 - aguardando 5s...\" &&
+          sleep 5
+        done &&
+        echo '[MongoDB Init] Verificando status do replica set...' &&
+        mongosh --host mongodb --quiet --eval '
+          try {
+            var status = rs.status();
+            if (status.ok === 1) {
+              print(\"[MongoDB Init] Replica set já inicializado. Estado: \" + status.myState);
+              print(\"[MongoDB Init] Members: \" + JSON.stringify(status.members.map(m => m.name)));
+            }
+          } catch(e) {
+            print(\"[MongoDB Init] Replica set não inicializado. Iniciando...\");
+            var config = {
+              _id: \"rs0\",
+              members: [{ _id: 0, host: \"mongodb:27017\" }]
+            };
+            var result = rs.initiate(config);
+            print(\"[MongoDB Init] rs.initiate() resultado: \" + JSON.stringify(result));
+            if (result.ok === 1) {
+              print(\"[MongoDB Init] Aguardando eleição de PRIMARY...\");
+              sleep(5000);
+              var newStatus = rs.status();
+              print(\"[MongoDB Init] Estado atual: \" + newStatus.myState);
+            }
+          }
+        ' &&
+        echo '[MongoDB Init] Concluído. Mantendo container ativo...' &&
+        sleep infinity
+      "
+
+    depends_on:
+      - mongodb
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 10
+
+  # ==========================================================================
+  # HABITICA SERVER - Backend (awinterstein fork)
+  # https://hub.docker.com/r/awinterstein/habitica-server
+  # ==========================================================================
+  server:
+    image: *habitica_server_image
+    networks:
+      - habitica_internal
+
+    environment:
+      ## ===== BANCO DE DADOS =====
+      ## Timeouts aumentados para aguardar replica set inicializar
+      - NODE_ENV=production
+      - NODE_DB_URI=mongodb://mongodb:27017/${HABITICA_DB_NAME:-habitica}?replicaSet=rs0&serverSelectionTimeoutMS=120000&connectTimeoutMS=30000&socketTimeoutMS=360000
+
+      ## ===== APLICAÇÃO =====
+      - BASE_URL=http://localhost:${HABITICA_PORT:-80}
+      - ADMIN_EMAIL=${HABITICA_ADMIN_EMAIL:-admin@dinamopro.com}
+
+      ## ===== SESSÃO =====
+      - SESSION_SECRET=${HABITICA_SESSION_SECRET}
+
+      ## ===== LOCALIZAÇÃO =====
+      - TZ=America/Sao_Paulo
+
+    depends_on:
+      - mongodb
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/v3/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  # ==========================================================================
+  # HABITICA CLIENT - Frontend (awinterstein fork)
+  # https://hub.docker.com/r/awinterstein/habitica-client
+  # NOTA: Em Swarm, o Caddy interno precisa do nome completo: habitica_server
+  # ==========================================================================
+  client:
+    image: *habitica_client_image
+    networks:
+      - habitica_internal
+
+    ports:
+      - "${HABITICA_PORT:-80}:80"
+
+    environment:
+      ## ===== BACKEND =====
+      ## O Caddy usa BACKEND_SERVER para o reverse proxy
+      ## Em Swarm, o nome do serviço é: <stack>_<service> = habitica_server
+      - BACKEND_SERVER=habitica_server:3000
+
+      ## ===== LOCALIZAÇÃO =====
+      - TZ=America/Sao_Paulo
+
+    depends_on:
+      - server
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  habitica_mongodb_data:
+    driver: local
+  habitica_mongodb_config:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  habitica_internal:
+    driver: overlay
+    internal: true

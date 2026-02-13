@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  freshrss-db:
+    image: ${FRESHRSS_DB_IMAGE:-postgres:16-alpine}
+    deploy:
+      replicas: ${FRESHRSS_DB_REPLICAS:-1}
+      placement:
+        constraints: [node.role == ${FRESHRSS_DB_NODE_ROLE:-manager}]
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    command: postgres -c 'max_connections=${FRESHRSS_DB_MAX_CONNECTIONS:-50}' -c 'shared_buffers=${FRESHRSS_DB_SHARED_BUFFERS:-128MB}'
+    environment:
+      POSTGRES_DB: ${FRESHRSS_DB_NAME:-freshrss}
+      POSTGRES_USER: ${FRESHRSS_DB_USER:-freshrss}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      TZ: ${FRESHRSS_TZ:-America/Sao_Paulo}
+    volumes:
+      - freshrss-db:/var/lib/postgresql/data
+    networks:
+      - freshrss-net
+    secrets:
+      - db_password
+
+  freshrss:
+    image: ${FRESHRSS_IMAGE:-freshrss/freshrss:edge}
+    deploy:
+      replicas: ${FRESHRSS_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints: [node.role == ${FRESHRSS_NODE_ROLE:-worker}]
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.freshrss.rule=Host(`${FRESHRSS_DOMAIN:-freshrss.seudominio.com}`)"
+        - "traefik.http.services.freshrss.loadbalancer.server.port=${FRESHRSS_PORT:-80}"
+    environment:
+      TZ: ${FRESHRSS_TZ:-America/Sao_Paulo}
+      CRON_MIN: ${FRESHRSS_CRON_MIN:-*/10}
+      TRUSTED_PROXY: ${FRESHRSS_TRUSTED_PROXY:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      DB_HOSTNAME: freshrss-db
+      DB_USERNAME: ${FRESHRSS_DB_USER:-freshrss}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_NAME: ${FRESHRSS_DB_NAME:-freshrss}
+    volumes:
+      - freshrss-data:/var/www/FreshRSS/data
+      - freshrss-extensions:/var/www/FreshRSS/extensions
+    networks:
+      - freshrss-net
+    secrets:
+      - db_password
+    depends_on:
+      - freshrss-db
+
+networks:
+  freshrss-net:
+    driver: overlay
+    attachable: true
+
+volumes:
+  freshrss-db:
+    driver: local
+  freshrss-data:
+    driver: local
+  freshrss-extensions:
+    driver: local
+
+secrets:
+  db_password:
+    external: true
