@@ -2,7 +2,7 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Duplicati (Backup Tool → Google Drive)
-# VERSÃO: 1.2
+# VERSÃO: 1.3
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 # Uso: docker stack deploy -c duplicati.yaml duplicati --env-file duplicati.env
@@ -11,8 +11,9 @@ version: "3.7"
 #   docker volume create duplicati_config
 #
 # FONTES DE BACKUP (somente leitura):
-#   /source/nvme  → NVMe principal (raiz do sistema, Docker volumes, etc.)
-#   /source/hdd   → Pool HDD de armazenamento de arquivos
+#   /source/stacks         → YAMLs dos serviços  (STACKS_PATH)
+#   /source/docker-volumes → Docker named volumes (DOCKER_VOLUMES_PATH)
+#   /source/hdd            → Pool HDD de dados    (HDD_PATH)
 #
 # DESTINO:
 #   Google Drive — configurado via interface web (OAuth)
@@ -56,10 +57,12 @@ services:
     volumes:
       ## Config persistente como volume Docker (inclui temp files do Duplicati)
       - duplicati_config:/config
-      ## NVMe principal — raiz do sistema, volumes Docker, configs, etc.
-      - ${NVME_PATH:-/}:/source/nvme:ro
-      ## Pool HDD — armazenamento de arquivos e mídia
-      - ${HDD_PATH:-/mnt/hdd}:/source/hdd:ro
+      ## YAMLs de todos os serviços
+      - ${STACKS_PATH:-/home/familia/stacks}:/source/stacks:ro
+      ## Dados persistentes dos containers (docker volumes)
+      - ${DOCKER_VOLUMES_PATH:-/var/lib/docker/volumes}:/source/docker-volumes:ro
+      ## Dados do disco grande (HDD)
+      - ${HDD_PATH:-/mnt/dados_hdd}:/source/hdd:ro
 
     deploy:
       mode: replicated
