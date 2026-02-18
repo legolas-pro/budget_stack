@@ -12,27 +12,23 @@ version: 1.1.6
 cache: true
 
 # ============================================================================
-# SERVIDORES MCP (Model Context Protocol)
-# LibreChat conecta via SSE aos servidores providos por supergateway e swagger_mcp.
+# SERVIDORES MCP — desativados
+# Descomentar ao ativar os serviços MCP na stack
 # ============================================================================
-mcpServers:
-
-  supergateway:
-    type: sse
-    url: "http://supergateway:8080/sse"
-    timeout: 60000
-    initTimeout: 15000
-
-  swagger-mcp:
-    type: sse
-    url: "http://swagger_mcp:8081/sse"
-    timeout: 60000
-    initTimeout: 15000
+# mcpServers:
+#   supergateway:
+#     type: sse
+#     url: "http://supergateway:8080/sse"
+#     timeout: 60000
+#     initTimeout: 15000
+#   swagger-mcp:
+#     type: sse
+#     url: "http://swagger_mcp:8081/sse"
+#     timeout: 60000
+#     initTimeout: 15000
 
 # ============================================================================
 # ENDPOINTS DE IA
-# OpenAI e Anthropic ficam como "user_provided" — cada usuário insere sua
-# própria chave na interface se quiser usá-los.
 # Groq e DeepSeek usam a chave global definida nas variáveis de ambiente.
 # ============================================================================
 endpoints:

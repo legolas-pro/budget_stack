@@ -1,20 +1,21 @@
 version: "3.7"
 
 # ============================================================================
-# STACK: LibreChat — AI Chat Platform com MCP Gateway
+# STACK: LibreChat — AI Chat Platform
 # VERSÃO: 1.0 — Cloudflared (sem Traefik / sem Caddy)
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
-# Componentes:
+# Componentes ativos:
 #   librechat_api  → Chat UI + backend principal      (host: ${LIBRECHAT_PORT:-4080})
 #   mongodb        → Banco de dados principal          (interno)
 #   meilisearch    → Busca full-text de mensagens      (interno)
 #   vectordb       → PostgreSQL + pgvector para RAG    (interno)
 #   rag_api        → Retrieval Augmented Generation    (interno)
+#
+# Componentes MCP (desativados — descomentar quando quiser ativar):
 #   supergateway   → Bridge stdio MCP → SSE            (host: ${SUPERGATEWAY_PORT:-4001})
 #   mcpo           → Proxy MCP → OpenAPI REST + Swagger(host: ${MCPO_PORT:-4002})
 #   swagger_mcp    → Bridge OpenAPI spec → MCP via SSE (host: ${SWAGGER_MCP_PORT:-4003})
-#   cloudflared    → Túnel HTTPS sem reverse proxy     (sem porta de host)
 # ============================================================================
 # Pré-requisitos de rede (criar uma única vez):
 #   docker network create --driver=overlay --attachable proxy_network
@@ -27,14 +28,8 @@ version: "3.7"
 #   docker volume create librechat_uploads
 #   docker volume create librechat_logs
 #
-# Deploy:
-#   docker stack deploy -c librechat-stack.yaml librechat \
-#     --env-file librechat-stack.env
-#
 # Cloudflared — configure no painel Zero Trust → Tunnels → Public Hostnames:
-#   chat.seu-dominio.com  → http://librechat_api:3080
-#   mcpo.seu-dominio.com  → http://mcpo:8000
-#   mcp.seu-dominio.com   → http://supergateway:8080
+#   chat.seu-dominio.com → http://librechat_api:3080
 # ============================================================================
 
 # ============================================================================
@@ -46,9 +41,9 @@ x-images:
   meilisearch:  &meili_image        getmeili/meilisearch:v1.12.3
   vectordb:     &vectordb_image     pgvector/pgvector:0.8.0-pg16-trixie
   rag_api:      &rag_image          ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
-  supergateway: &supergateway_image node:22-alpine
-  mcpo:         &mcpo_image         ghcr.io/open-webui/mcpo:main
-
+  # MCP (desativado):
+  # supergateway: &supergateway_image node:22-alpine
+  # mcpo:         &mcpo_image         ghcr.io/open-webui/mcpo:main
 
 # ============================================================================
 # DNS COMUM (reutilizado via YAML anchor)
@@ -221,9 +216,9 @@ services:
   librechat_api:
     image: *librechat_image
     networks:
-      - librechat_internal   # acesso a mongo, meili, rag
-      - mcp_internal          # acesso a supergateway, mcpo, swagger_mcp
-      - proxy_network         # acesso do cloudflared
+      - librechat_internal
+      - proxy_network
+      # - mcp_internal   # descomentar ao ativar os serviços MCP
     <<: *common_dns
     ports:
       - "${LIBRECHAT_PORT:-4080}:3080"
@@ -253,7 +248,7 @@ services:
       - DOMAIN_CLIENT=http://localhost:${LIBRECHAT_PORT:-4080}
       - DOMAIN_SERVER=http://localhost:${LIBRECHAT_PORT:-4080}
       - NO_INDEX=true
-      ## APIs de IA (injetadas no librechat.yaml via ${VAR})
+      ## APIs de IA
       - GROQ_API_KEY=${GROQ_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     configs:
@@ -289,179 +284,135 @@ services:
       start_period: 90s
 
   # ==========================================================================
-  # SUPERGATEWAY — Bridge MCP stdio → SSE
-  # Converte servidores MCP stdio em endpoint SSE consumível pelo LibreChat
-  # LibreChat conecta via SSE:  http://supergateway:8080/sse
-  # Porta host: ${SUPERGATEWAY_PORT:-4001}
-  #
-  # Para trocar o servidor MCP, edite SUPERGATEWAY_MCP_COMMAND no env:
-  #   Filesystem:  npx -y @modelcontextprotocol/server-filesystem /data
-  #   Fetch:       npx -y @modelcontextprotocol/server-fetch
-  #   Everything:  npx -y @modelcontextprotocol/server-everything (demo)
+  # MCP — SERVIÇOS DESATIVADOS
+  # Para ativar: descomentar os blocos abaixo + mcp_internal nas networks
   # ==========================================================================
-  supergateway:
-    image: *supergateway_image
-    networks:
-      - mcp_internal
-      - proxy_network
-    <<: *common_dns
-    ports:
-      - "${SUPERGATEWAY_PORT:-4001}:8080"
-    entrypoint: ["/bin/sh", "-c"]
-    # IMPORTANTE: command deve ser array de UM elemento — string é dividida no whitespace pelo Compose
-    command:
-      - "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 45s
 
-  # ==========================================================================
-  # SWAGGER-MCP — Bridge OpenAPI Spec → MCP via SSE
-  # Lê uma spec Swagger/OpenAPI e expõe todos os endpoints como ferramentas MCP
-  # Reutiliza supergateway como transporte SSE + @openapi-mcp/server como MCP
-  # LibreChat conecta via SSE:  http://swagger_mcp:8081/sse
-  # Porta host: ${SWAGGER_MCP_PORT:-4003}
-  #
-  # Configure SWAGGER_MCP_SPEC_URL no env para apontar para sua API:
-  #   Exemplo interno: http://actual:5007/api-docs/swagger.json
-  #   Exemplo externo: https://petstore.swagger.io/v2/swagger.json
-  # ==========================================================================
-  swagger_mcp:
-    image: *supergateway_image
-    networks:
-      - mcp_internal
-      - proxy_network
-    <<: *common_dns
-    ports:
-      - "${SWAGGER_MCP_PORT:-4003}:8081"
-    entrypoint: ["/bin/sh", "-c"]
-    # IMPORTANTE: command deve ser array de UM elemento — string é dividida no whitespace pelo Compose
-    command:
-      - "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+  # supergateway:
+  #   image: node:22-alpine
+  #   networks:
+  #     - mcp_internal
+  #     - proxy_network
+  #   ports:
+  #     - "${SUPERGATEWAY_PORT:-4001}:8080"
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 45s
 
-  # ==========================================================================
-  # MCPO — Proxy MCP → OpenAPI REST com Swagger UI integrado
-  # Consome servidores MCP (stdio) e os expõe como endpoints REST padrão
-  # Ideal para integração com ferramentas externas e testes via Swagger UI
-  # Porta host: ${MCPO_PORT:-4002}
-  # Swagger UI:  http://host:4002/docs
-  # ==========================================================================
-  mcpo:
-    image: *mcpo_image
-    networks:
-      - mcp_internal
-      - proxy_network
-    <<: *common_dns
-    ports:
-      - "${MCPO_PORT:-4002}:8000"
-    command: >-
-      --port 8000
-      --api-key ${MCPO_API_KEY}
-      --config /app/config.json
-    configs:
-      - source: mcpo_config
-        target: /app/config.json
-        mode: 0444
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+  # swagger_mcp:
+  #   image: node:22-alpine
+  #   networks:
+  #     - mcp_internal
+  #     - proxy_network
+  #   ports:
+  #     - "${SWAGGER_MCP_PORT:-4003}:8081"
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+
+  # mcpo:
+  #   image: ghcr.io/open-webui/mcpo:main
+  #   networks:
+  #     - mcp_internal
+  #     - proxy_network
+  #   ports:
+  #     - "${MCPO_PORT:-4002}:8000"
+  #   command: >-
+  #     --port 8000
+  #     --api-key ${MCPO_API_KEY}
+  #     --config /app/config.json
+  #   configs:
+  #     - source: mcpo_config
+  #       target: /app/config.json
+  #       mode: 0444
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
 
   # ==========================================================================
   # CLOUDFLARED — já está rodando como serviço separado no seu ambiente.
-  # Adicione os hostnames abaixo no painel do seu túnel existente:
-  #   Cloudflare Zero Trust → Networks → Tunnels → seu túnel → Public Hostnames
-  #
-  #   chat.dominio.com → http://librechat_api:3080  (LibreChat UI)
-  #   mcpo.dominio.com → http://mcpo:8000           (API REST + Swagger)
-  #   mcp.dominio.com  → http://supergateway:8080   (SSE MCP endpoint)
-  #
-  # O cloudflared precisa estar na mesma rede overlay que os serviços acima.
-  # Certifique-se de que o container do cloudflared está na rede: proxy_network
+  # Adicione no painel: Zero Trust → Tunnels → seu túnel → Public Hostnames:
+  #   chat.dominio.com → http://librechat_api:3080
   # ==========================================================================
 
 # ============================================================================
-# CONFIGS (Docker Swarm Config — arquivos injetados nos containers)
-#
-# Crie as configs ANTES do deploy via Portainer:
-#   Portainer → Configs → Add config
-#     Nome: librechat_config  → cole o conteúdo de librechat.yaml
-#     Nome: mcpo_config       → cole o conteúdo de mcpo-config.json
-#
-# Para atualizar uma config após o deploy:
-#   1. Portainer → Configs → remova a config antiga
-#   2. Crie a nova config com o mesmo nome
-#   3. Portainer → Stacks → Update the stack
+# CONFIGS (Docker Swarm Config — injetados nos containers via Portainer)
+# Portainer → Configs → Add config:
+#   Nome: librechat_config → conteúdo de librechat_config.yaml
 # ============================================================================
 configs:
   librechat_config:
     external: true
     name: librechat_config
-  mcpo_config:
-    external: true
-    name: mcpo_config
+  # mcpo_config:        # descomentar ao ativar mcpo
+  #   external: true
+  #   name: mcpo_config
 
 # ============================================================================
 # VOLUMES
@@ -495,10 +446,10 @@ networks:
     driver: overlay
     internal: true
 
-  # Rede MCP interna: supergateway, mcpo, swagger_mcp, LibreChat API
-  mcp_internal:
-    driver: overlay
-    internal: true
+  # Rede MCP interna (desativada — descomentar ao ativar serviços MCP)
+  # mcp_internal:
+  #   driver: overlay
+  #   internal: true
 
   # Rede compartilhada com Cloudflared (deve existir antes do deploy)
   proxy_network:
