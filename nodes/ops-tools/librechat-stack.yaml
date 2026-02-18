@@ -48,7 +48,7 @@ x-images:
   rag_api:      &rag_image          ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
   supergateway: &supergateway_image ghcr.io/supermemoryai/supergateway:latest
   mcpo:         &mcpo_image         ghcr.io/open-webui/mcpo:main
-  cloudflared:  &cloudflared_image  cloudflare/cloudflared:latest
+
 
 # ============================================================================
 # DNS COMUM (reutilizado via YAML anchor)
@@ -215,7 +215,7 @@ services:
 
   # ==========================================================================
   # LIBRECHAT API — Chat UI + Backend principal
-  # Cloudflared: https://${LIBRECHAT_HOST} → http://librechat_api:3080
+  # Cloudflared aponta para http://librechat_api:3080 — configure domínios no painel
   # Porta host: ${LIBRECHAT_PORT:-4080}
   # ==========================================================================
   librechat_api:
@@ -249,9 +249,9 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - CREDS_KEY=${CREDS_KEY}
       - CREDS_IV=${CREDS_IV}
-      ## Domínio público (via Cloudflared)
-      - DOMAIN_CLIENT=https://${LIBRECHAT_HOST}
-      - DOMAIN_SERVER=https://${LIBRECHAT_HOST}
+      ## URL base — Cloudflare gerencia os domínios externamente
+      - DOMAIN_CLIENT=http://localhost:${LIBRECHAT_PORT:-4080}
+      - DOMAIN_SERVER=http://localhost:${LIBRECHAT_PORT:-4080}
       - NO_INDEX=true
       ## APIs de IA
       - OPENAI_API_KEY=${OPENAI_API_KEY:-user_provided}
@@ -434,40 +434,17 @@ services:
       start_period: 30s
 
   # ==========================================================================
-  # CLOUDFLARED — Túnel HTTPS (sem Traefik / sem Caddy)
-  # Crie o túnel no painel:  Zero Trust → Networks → Tunnels → Create a tunnel
-  # Copie o token e adicione ao env: CLOUDFLARED_TOKEN=eyJ...
+  # CLOUDFLARED — já está rodando como serviço separado no seu ambiente.
+  # Adicione os hostnames abaixo no painel do seu túnel existente:
+  #   Cloudflare Zero Trust → Networks → Tunnels → seu túnel → Public Hostnames
   #
-  # Configure os Public Hostnames no painel Cloudflare:
   #   chat.dominio.com → http://librechat_api:3080  (LibreChat UI)
   #   mcpo.dominio.com → http://mcpo:8000           (API REST + Swagger)
   #   mcp.dominio.com  → http://supergateway:8080   (SSE MCP endpoint)
+  #
+  # O cloudflared precisa estar na mesma rede overlay que os serviços acima.
+  # Certifique-se de que o container do cloudflared está na rede: proxy_network
   # ==========================================================================
-  cloudflared:
-    image: *cloudflared_image
-    command: tunnel --no-autoupdate run
-    networks:
-      - proxy_network
-    <<: *common_dns
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARED_TOKEN}
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 128M
-        reservations:
-          cpus: "0.05"
-          memory: 64M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
 
 # ============================================================================
 # CONFIGS (Docker Swarm Config — arquivos injetados nos containers)
@@ -530,4 +507,4 @@ networks:
   # Rede compartilhada com Cloudflared (deve existir antes do deploy)
   proxy_network:
     external: true
-    name: proxy_network
+    name: ${PROXY_NETWORK:-proxy_network}
