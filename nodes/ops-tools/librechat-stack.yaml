@@ -119,11 +119,11 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "1.0"
+          memory: 1024M
         reservations:
           cpus: "0.1"
-          memory: 128M
+          memory: 256M
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -132,8 +132,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7700/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 60s
 
   # ==========================================================================
   # VECTORDB — PostgreSQL + pgvector (embeddings para RAG)
@@ -308,7 +308,9 @@ services:
     ports:
       - "${SUPERGATEWAY_PORT:-4001}:8080"
     entrypoint: ["/bin/sh", "-c"]
-    command: "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
+    # IMPORTANTE: command deve ser array de UM elemento — string é dividida no whitespace pelo Compose
+    command:
+      - "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1
@@ -353,7 +355,9 @@ services:
     ports:
       - "${SWAGGER_MCP_PORT:-4003}:8081"
     entrypoint: ["/bin/sh", "-c"]
-    command: "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
+    # IMPORTANTE: command deve ser array de UM elemento — string é dividida no whitespace pelo Compose
+    command:
+      - "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1
