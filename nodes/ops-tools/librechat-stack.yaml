@@ -46,7 +46,7 @@ x-images:
   meilisearch:  &meili_image        getmeili/meilisearch:v1.12.3
   vectordb:     &vectordb_image     pgvector/pgvector:0.8.0-pg16-trixie
   rag_api:      &rag_image          ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
-  supergateway: &supergateway_image ghcr.io/supermemoryai/supergateway:latest
+  supergateway: &supergateway_image node:22-alpine
   mcpo:         &mcpo_image         ghcr.io/open-webui/mcpo:main
 
 
@@ -253,9 +253,9 @@ services:
       - DOMAIN_CLIENT=http://localhost:${LIBRECHAT_PORT:-4080}
       - DOMAIN_SERVER=http://localhost:${LIBRECHAT_PORT:-4080}
       - NO_INDEX=true
-      ## APIs de IA
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-user_provided}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-user_provided}
+      ## APIs de IA (injetadas no librechat.yaml via ${VAR})
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     configs:
       - source: librechat_config
         target: /app/librechat.yaml
@@ -307,13 +307,8 @@ services:
     <<: *common_dns
     ports:
       - "${SUPERGATEWAY_PORT:-4001}:8080"
-    environment:
-      - PORT=8080
-    command: >-
-      --port 8080
-      --stdio "${SUPERGATEWAY_MCP_COMMAND}"
-      --cors
-      --healthEndpoint /health
+    entrypoint: ["/bin/sh", "-c"]
+    command: "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1
@@ -357,11 +352,8 @@ services:
     <<: *common_dns
     ports:
       - "${SWAGGER_MCP_PORT:-4003}:8081"
-    command: >-
-      --port 8081
-      --stdio "npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}"
-      --cors
-      --healthEndpoint /health
+    entrypoint: ["/bin/sh", "-c"]
+    command: "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1

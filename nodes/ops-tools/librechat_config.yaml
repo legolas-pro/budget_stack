@@ -5,35 +5,24 @@
 # Este arquivo é injetado no container via Docker Swarm Config.
 # Para atualizar após o deploy:
 #   1. Edite este arquivo
-#   2. docker config rm librechat_librechat_config
-#   3. docker stack deploy -c librechat-stack.yaml librechat --env-file librechat-stack.env
+#   2. Portainer → Configs → remova librechat_config → Add config com novo conteúdo
+#   3. Portainer → Stacks → Update the stack
 # ============================================================================
 version: 1.1.6
 cache: true
 
 # ============================================================================
 # SERVIDORES MCP (Model Context Protocol)
-# Cada entrada é um servidor de ferramentas acessível pelo assistente.
 # LibreChat conecta via SSE aos servidores providos por supergateway e swagger_mcp.
 # ============================================================================
 mcpServers:
 
-  # --------------------------------------------------------------------------
-  # supergateway — Ferramentas MCP gerais (filesystem, fetch, memory, etc.)
-  # Endpoint SSE exposto pelo serviço "supergateway" na rede mcp_internal.
-  # Troque o servidor MCP em SUPERGATEWAY_MCP_COMMAND no env file.
-  # --------------------------------------------------------------------------
   supergateway:
     type: sse
     url: "http://supergateway:8080/sse"
     timeout: 60000
     initTimeout: 15000
 
-  # --------------------------------------------------------------------------
-  # swagger-mcp — Endpoints de APIs REST como ferramentas MCP
-  # Lê a spec OpenAPI configurada em SWAGGER_MCP_SPEC_URL e converte
-  # cada endpoint em uma ferramenta MCP utilizável pelo assistente.
-  # --------------------------------------------------------------------------
   swagger-mcp:
     type: sse
     url: "http://swagger_mcp:8081/sse"
@@ -41,52 +30,43 @@ mcpServers:
     initTimeout: 15000
 
 # ============================================================================
-# ENDPOINTS DE IA (configurações globais)
-# As chaves de API são lidas das variáveis de ambiente definidas no env file.
+# ENDPOINTS DE IA
+# OpenAI e Anthropic ficam como "user_provided" — cada usuário insere sua
+# própria chave na interface se quiser usá-los.
+# Groq e DeepSeek usam a chave global definida nas variáveis de ambiente.
 # ============================================================================
 endpoints:
-  # Configurações do endpoint OpenAI
-  openAI:
-    # Desative modelos que não quer expor aos usuários
-    # models:
-    #   default: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
-    #   fetch: true
+  custom:
 
-  # Configurações do endpoint Anthropic
-  anthropic:
-    # models:
-    #   default: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
-    #   fetch: true
+    - name: "Groq"
+      apiKey: "${GROQ_API_KEY}"
+      baseURL: "https://api.groq.com/openai/v1"
+      models:
+        default:
+          - "llama-3.3-70b-versatile"
+          - "llama-3.1-8b-instant"
+          - "mixtral-8x7b-32768"
+          - "gemma2-9b-it"
+        fetch: true
+      titleConvo: true
+      titleModel: "llama-3.1-8b-instant"
+      modelDisplayLabel: "Groq"
+      iconURL: "https://console.groq.com/favicon.ico"
 
-  # Endpoints customizados (LiteLLM, Ollama, etc.)
-  # custom:
-  #   - name: "Ollama Local"
-  #     apiKey: "ollama"
-  #     baseURL: "http://ollama:11434/v1"
-  #     models:
-  #       default: ["llama3.2", "mistral"]
-  #     fetch: true
-  #     titleConvo: true
-  #     titleModel: "llama3.2"
-
-# ============================================================================
-# CONFIGURAÇÕES DE INTERFACE
-# ============================================================================
-interface:
-  # Idioma padrão da interface
-  # language: "ptBR"
-
-  # Ocultar o menu de modelos na interface (forçar modelo específico)
-  # modelSelect: false
+    - name: "DeepSeek"
+      apiKey: "${DEEPSEEK_API_KEY}"
+      baseURL: "https://api.deepseek.com/v1"
+      models:
+        default:
+          - "deepseek-chat"
+          - "deepseek-reasoner"
+        fetch: true
+      titleConvo: true
+      titleModel: "deepseek-chat"
+      modelDisplayLabel: "DeepSeek"
 
 # ============================================================================
 # CONFIGURAÇÕES DE ARQUIVO
 # ============================================================================
 fileConfig:
-  # Tamanho máximo de upload por arquivo (em MB)
   serverFileSizeLimit: 100
-  # Tipos de arquivo permitidos para upload
-  # endpoints:
-  #   default:
-  #     fileLimit: 10
-  #     totalSizeLimit: 200
