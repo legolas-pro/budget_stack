@@ -471,15 +471,24 @@ services:
 
 # ============================================================================
 # CONFIGS (Docker Swarm Config — arquivos injetados nos containers)
-# Atenção: configs são imutáveis no Swarm. Para atualizar:
-#   1. docker config rm librechat_librechat_config
-#   2. docker stack deploy ... (recria automaticamente)
+#
+# Crie as configs ANTES do deploy via Portainer:
+#   Portainer → Configs → Add config
+#     Nome: librechat_config  → cole o conteúdo de librechat.yaml
+#     Nome: mcpo_config       → cole o conteúdo de mcpo-config.json
+#
+# Para atualizar uma config após o deploy:
+#   1. Portainer → Configs → remova a config antiga
+#   2. Crie a nova config com o mesmo nome
+#   3. Portainer → Stacks → Update the stack
 # ============================================================================
 configs:
   librechat_config:
-    file: ./librechat.yaml
+    external: true
+    name: librechat_config
   mcpo_config:
-    file: ./mcpo-config.json
+    external: true
+    name: mcpo_config
 
 # ============================================================================
 # VOLUMES
