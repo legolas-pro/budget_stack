@@ -1,0 +1,92 @@
+# ============================================================================
+# LibreChat — Arquivo de Configuração Principal
+# Referência: https://www.librechat.ai/docs/configuration/librechat_yaml
+# ============================================================================
+# Este arquivo é injetado no container via Docker Swarm Config.
+# Para atualizar após o deploy:
+#   1. Edite este arquivo
+#   2. docker config rm librechat_librechat_config
+#   3. docker stack deploy -c librechat-stack.yaml librechat --env-file librechat-stack.env
+# ============================================================================
+version: 1.1.6
+cache: true
+
+# ============================================================================
+# SERVIDORES MCP (Model Context Protocol)
+# Cada entrada é um servidor de ferramentas acessível pelo assistente.
+# LibreChat conecta via SSE aos servidores providos por supergateway e swagger_mcp.
+# ============================================================================
+mcpServers:
+
+  # --------------------------------------------------------------------------
+  # supergateway — Ferramentas MCP gerais (filesystem, fetch, memory, etc.)
+  # Endpoint SSE exposto pelo serviço "supergateway" na rede mcp_internal.
+  # Troque o servidor MCP em SUPERGATEWAY_MCP_COMMAND no env file.
+  # --------------------------------------------------------------------------
+  supergateway:
+    type: sse
+    url: "http://supergateway:8080/sse"
+    timeout: 60000
+    initTimeout: 15000
+
+  # --------------------------------------------------------------------------
+  # swagger-mcp — Endpoints de APIs REST como ferramentas MCP
+  # Lê a spec OpenAPI configurada em SWAGGER_MCP_SPEC_URL e converte
+  # cada endpoint em uma ferramenta MCP utilizável pelo assistente.
+  # --------------------------------------------------------------------------
+  swagger-mcp:
+    type: sse
+    url: "http://swagger_mcp:8081/sse"
+    timeout: 60000
+    initTimeout: 15000
+
+# ============================================================================
+# ENDPOINTS DE IA (configurações globais)
+# As chaves de API são lidas das variáveis de ambiente definidas no env file.
+# ============================================================================
+endpoints:
+  # Configurações do endpoint OpenAI
+  openAI:
+    # Desative modelos que não quer expor aos usuários
+    # models:
+    #   default: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+    #   fetch: true
+
+  # Configurações do endpoint Anthropic
+  anthropic:
+    # models:
+    #   default: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+    #   fetch: true
+
+  # Endpoints customizados (LiteLLM, Ollama, etc.)
+  # custom:
+  #   - name: "Ollama Local"
+  #     apiKey: "ollama"
+  #     baseURL: "http://ollama:11434/v1"
+  #     models:
+  #       default: ["llama3.2", "mistral"]
+  #     fetch: true
+  #     titleConvo: true
+  #     titleModel: "llama3.2"
+
+# ============================================================================
+# CONFIGURAÇÕES DE INTERFACE
+# ============================================================================
+interface:
+  # Idioma padrão da interface
+  # language: "ptBR"
+
+  # Ocultar o menu de modelos na interface (forçar modelo específico)
+  # modelSelect: false
+
+# ============================================================================
+# CONFIGURAÇÕES DE ARQUIVO
+# ============================================================================
+fileConfig:
+  # Tamanho máximo de upload por arquivo (em MB)
+  serverFileSizeLimit: 100
+  # Tipos de arquivo permitidos para upload
+  # endpoints:
+  #   default:
+  #     fileLimit: 10
+  #     totalSizeLimit: 200
