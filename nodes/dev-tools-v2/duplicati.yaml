@@ -1,0 +1,103 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Duplicati (Backup Tool → Google Drive)
+# VERSÃO: 1.2
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Uso: docker stack deploy -c duplicati.yaml duplicati --env-file duplicati.env
+# ============================================================================
+# Volumes necessários (criar antes do deploy):
+#   docker volume create duplicati_config
+#
+# FONTES DE BACKUP (somente leitura):
+#   /source/nvme  → NVMe principal (raiz do sistema, Docker volumes, etc.)
+#   /source/hdd   → Pool HDD de armazenamento de arquivos
+#
+# DESTINO:
+#   Google Drive — configurado via interface web (OAuth)
+#   Acesse http://<host>:8200 → Settings → Add backup → Google Drive
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  duplicati: &duplicati_image lscr.io/linuxserver/duplicati:latest
+
+services:
+  # ==========================================================================
+  # DUPLICATI - Interface Web de Backup
+  # ==========================================================================
+  duplicati:
+    image: *duplicati_image
+    networks:
+      ## Rede externa configurável via NETWORK_NAME no env (ex: cloudflared_network)
+      - proxy_network
+
+    ports:
+      - "${DUPLICATI_PORT:-8200}:8200"
+
+    environment:
+      ## ===== USUÁRIO DO SISTEMA =====
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+
+      ## ===== LOCALIZAÇÃO =====
+      - TZ=${TZ:-America/Sao_Paulo}
+
+      ## ===== SEGURANÇA =====
+      - SETTINGS_ENCRYPTION_KEY=${SETTINGS_ENCRYPTION_KEY}
+      - DUPLICATI__WEBSERVICE_PASSWORD=${WEBSERVICE_PASSWORD}
+
+      ## ===== CLI (opcional) =====
+      - CLI_ARGS=${CLI_ARGS:-}
+
+    volumes:
+      ## Config persistente como volume Docker (inclui temp files do Duplicati)
+      - duplicati_config:/config
+      ## NVMe principal — raiz do sistema, volumes Docker, configs, etc.
+      - ${NVME_PATH:-/}:/source/nvme:ro
+      ## Pool HDD — armazenamento de arquivos e mídia
+      - ${HDD_PATH:-/mnt/hdd}:/source/hdd:ro
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8200/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  duplicati_config:
+    external: true
+    name: ${STACK_PREFIX:-duplicati}_config
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  proxy_network:
+    external: true
+    name: ${NETWORK_NAME}
