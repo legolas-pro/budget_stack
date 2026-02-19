@@ -12,9 +12,9 @@ version: "3.7"
 #   vectordb       → PostgreSQL + pgvector para RAG    (interno)
 #   rag_api        → Retrieval Augmented Generation    (interno)
 #
-# Componentes MCP (desativados — descomentar quando quiser ativar):
-#   supergateway   → Bridge stdio MCP → SSE            (host: ${SUPERGATEWAY_PORT:-4001})
-#   swagger_mcp    → Bridge OpenAPI spec → MCP via SSE (host: ${SWAGGER_MCP_PORT:-4003})
+# Componentes MCP:
+#   actual_budget_mcp → Actual Budget OpenAPI → MCP HTTP (Streamable HTTP, host: 4003)
+#   supergateway      → Bridge stdio MCP → SSE (desativado — manter comentado)
 # ============================================================================
 # Pré-requisitos de rede (criar uma única vez):
 #   docker network create --driver=overlay --attachable proxy_network
@@ -320,10 +320,12 @@ services:
   #     start_period: 45s
 
   # ==========================================================================
-  # actual-budget MCP — expõe a API do Actual Budget como SSE
-  # Conectar via UI: http://librechat_actual_budget_mcp:8081/sse  (interno)
-  #               ou http://192.168.68.115:4003/sse               (host)
-  # Imagem: node:22 (Debian) para evitar problema de ESM no Alpine
+  # actual-budget MCP — Actual Budget API como servidor MCP HTTP nativo
+  # Sem supergateway: @ivotoby/openapi-mcp-server usa transport HTTP diretamente
+  # Conectar via UI: Streamable HTTP → http://192.168.68.115:4003/mcp
+  # Motivo: supergateway stdio→SSE mantém 1 processo e falha com "Already
+  #         connected to transport" na segunda conexão. HTTP nativo não tem
+  #         esse problema — cada request é independente.
   # ==========================================================================
   actual_budget_mcp:
     image: node:22
@@ -333,7 +335,7 @@ services:
       - "4003:8081"
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "npm install -g supergateway @ivotoby/openapi-mcp-server && supergateway --port 8081 --stateless --stdio 'node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js --api-base-url http://192.168.68.115:5007 --openapi-spec http://192.168.68.115:5007/api-docs/swagger.json' --cors --healthEndpoint /health"
+      - "npm install -g @ivotoby/openapi-mcp-server && node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js --transport http --port 8081 --api-base-url http://192.168.68.115:5007 --openapi-spec http://192.168.68.115:5007/api-docs/swagger.json"
     deploy:
       mode: replicated
       replicas: 1
@@ -352,7 +354,7 @@ services:
         delay: 10s
         max_attempts: 5
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8081' 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
