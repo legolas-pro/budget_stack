@@ -231,9 +231,6 @@ services:
       ## RAG — desativado (descomentar ao ativar rag_api)
       # - RAG_PORT=8000
       # - RAG_API_URL=http://rag_api:8000
-      ## MCP — serviços via porta do host
-      - SUPERGATEWAY_HOST=${SUPERGATEWAY_HOST}
-      - SWAGGER_MCP_HOST=${SWAGGER_MCP_HOST}
       ## Autenticação
       - ALLOW_EMAIL_LOGIN=${ALLOW_EMAIL_LOGIN:-true}
       - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-true}

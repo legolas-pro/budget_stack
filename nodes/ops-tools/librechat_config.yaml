@@ -17,13 +17,7 @@ cache: true
 mcpServers:
   supergateway:
     type: sse
-    url: "http://${SUPERGATEWAY_HOST}:${SUPERGATEWAY_PORT:-4001}/sse"
-    timeout: 60000
-    initTimeout: 15000
-
-  swagger-mcp:
-    type: sse
-    url: "http://${SWAGGER_MCP_HOST}:${SWAGGER_MCP_PORT:-4003}/sse"
+    url: "http://supergateway:8080/sse"
     timeout: 60000
     initTimeout: 15000
 
