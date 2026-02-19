@@ -61,6 +61,24 @@ endpoints:
       titleModel: "deepseek-chat"
       modelDisplayLabel: "DeepSeek"
 
+    - name: "OpenRouter"
+      apiKey: "${OPENROUTER_API_KEY}"
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        default:
+          - "anthropic/claude-sonnet-4-5"
+          - "anthropic/claude-opus-4"
+          - "google/gemini-2.0-flash-001"
+          - "meta-llama/llama-3.3-70b-instruct"
+          - "mistralai/mistral-large"
+          - "x-ai/grok-3-mini-beta"
+        fetch: true
+      titleConvo: true
+      titleModel: "google/gemini-2.0-flash-001"
+      modelDisplayLabel: "OpenRouter"
+      dropParams:
+        - "stop"
+
 # ============================================================================
 # CONFIGURAÇÕES DE ARQUIVO
 # ============================================================================
