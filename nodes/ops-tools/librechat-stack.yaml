@@ -335,7 +335,7 @@ services:
       - "4003:8081"
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "npm install -g @ivotoby/openapi-mcp-server && node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js --transport http --port 8081 --api-base-url http://192.168.68.115:5007 --openapi-spec http://192.168.68.115:5007/api-docs/swagger.json"
+      - "npm install -g @ivotoby/openapi-mcp-server && node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js --transport http --port 8081 --host 0.0.0.0 --api-base-url http://192.168.68.115:5007 --openapi-spec http://192.168.68.115:5007/api-docs/swagger.json"
     deploy:
       mode: replicated
       replicas: 1
