@@ -18,7 +18,7 @@ cache: true
 mcpSettings:
   allowedDomains:
     - "${SERVER_IP}"
-    - "${ACTUAL_MCP_DOMAIN}"
+    - "*.${STACK_DOMAIN}"
     - "librechat_actual_budget_mcp"
 
 # ============================================================================
