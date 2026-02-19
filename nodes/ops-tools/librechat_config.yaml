@@ -17,9 +17,8 @@ cache: true
 # ============================================================================
 mcpSettings:
   allowedDomains:
-    - "${SERVER_IP}"
-    - "*.${STACK_DOMAIN}"
-    - "librechat_actual_budget_mcp"
+    - "192.168.68.115"
+    - "*.partiuexecutivo.com.br"
 
 # ============================================================================
 # ENDPOINTS DE IA
