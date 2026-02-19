@@ -281,75 +281,76 @@ services:
       start_period: 90s
 
   # ==========================================================================
-  # MCP — SERVIÇOS DESATIVADOS
-  # Para ativar: descomentar os blocos abaixo + mcp_internal nas networks
+  # MCP via SSE — DESATIVADOS
+  # Substituídos por type: stdio direto no librechat_config.yaml.
+  # Descomentar apenas se precisar expor os MCP como SSE externamente.
   # ==========================================================================
 
-  supergateway:
-    image: node:22-alpine
-    networks:
-      - proxy_network
-    ports:
-      - "${SUPERGATEWAY_PORT:-4001}:8080"
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - "npx -y supergateway --port 8080 --stateless --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 45s
+  # supergateway:
+  #   image: node:22-alpine
+  #   networks:
+  #     - proxy_network
+  #   ports:
+  #     - "${SUPERGATEWAY_PORT:-4001}:8080"
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - "npx -y supergateway --port 8080 --stateless --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 45s
 
-  swagger_mcp:
-    image: node:22-alpine
-    networks:
-      - proxy_network
-    ports:
-      - "${SWAGGER_MCP_PORT:-4003}:8081"
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - "npx -y supergateway --port 8081 --stateless --stdio 'npx -y openapi-mcp-server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+  # swagger_mcp:
+  #   image: node:22-alpine
+  #   networks:
+  #     - proxy_network
+  #   ports:
+  #     - "${SWAGGER_MCP_PORT:-4003}:8081"
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - "npx -y supergateway --port 8081 --stateless --stdio 'npx -y openapi-mcp-server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       max_attempts: 3
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
 
 
   # ==========================================================================

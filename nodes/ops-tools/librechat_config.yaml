@@ -15,11 +15,22 @@ cache: true
 # SERVIDORES MCP
 # ============================================================================
 mcpServers:
-  supergateway:
-    type: sse
-    url: "http://supergateway:8080/sse"
+  server-everything:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-everything"
     timeout: 60000
-    initTimeout: 15000
+
+  swagger:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - openapi-mcp-server
+      - "http://192.168.68.115:5007/api-docs/swagger.json"
+    timeout: 60000
 
 # ============================================================================
 # ENDPOINTS DE IA
