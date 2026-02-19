@@ -281,9 +281,9 @@ services:
       start_period: 90s
 
   # ==========================================================================
-  # MCP via SSE — DESATIVADOS
-  # Substituídos por type: stdio direto no librechat_config.yaml.
-  # Descomentar apenas se precisar expor os MCP como SSE externamente.
+  # MCP via SSE — independente do LibreChat
+  # Conectar via UI: Adicionar Servidor MCP → SSE → URL abaixo
+  # supergateway: comentado (não necessário por enquanto)
   # ==========================================================================
 
   # supergateway:
@@ -319,15 +319,21 @@ services:
   #     retries: 3
   #     start_period: 45s
 
-  # swagger_mcp:
-  #   image: node:22-alpine
-  #   networks:
-  #     - proxy_network
-  #   ports:
-  #     - "${SWAGGER_MCP_PORT:-4003}:8081"
-  #   entrypoint: ["/bin/sh", "-c"]
-  #   command:
-  #     - "npx -y supergateway --port 8081 --stateless --stdio 'npx -y openapi-mcp-server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
+  # ==========================================================================
+  # actual-budget MCP — expõe a API do Actual Budget como SSE
+  # Conectar via UI: http://librechat_actual_budget_mcp:8081/sse  (interno)
+  #               ou http://192.168.68.115:4003/sse               (host)
+  # Imagem: node:22 (Debian) para evitar problema de ESM no Alpine
+  # ==========================================================================
+  actual_budget_mcp:
+    image: node:22
+    networks:
+      - proxy_network
+    ports:
+      - "4003:8081"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "npx -y supergateway --port 8081 --stateless --stdio 'npx -y @openapi-mcp/server http://192.168.68.115:5007/api-docs/swagger.json' --cors --healthEndpoint /health"
   #   deploy:
   #     mode: replicated
   #     replicas: 1
@@ -341,18 +347,6 @@ services:
   #       reservations:
   #         cpus: "0.1"
   #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-
-
   # ==========================================================================
   # CLOUDFLARED — já está rodando como serviço separado no seu ambiente.
   # Adicione no painel: Zero Trust → Tunnels → seu túnel → Public Hostnames:
