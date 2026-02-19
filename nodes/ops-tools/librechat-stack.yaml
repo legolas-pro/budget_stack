@@ -223,6 +223,7 @@ services:
       - PORT=3080
       - HOST=0.0.0.0
       - NODE_ENV=production
+      - SERVER_IP=${SERVER_IP}
       ## Banco de dados
       - MONGO_URI=mongodb://mongodb:27017/${MONGO_DB:-librechat}
       ## Busca

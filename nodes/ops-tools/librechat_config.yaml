@@ -12,6 +12,15 @@ version: 1.1.6
 cache: true
 
 # ============================================================================
+# MCP SETTINGS — Allowlist de domínios para MCP adicionados via UI
+# IPs privados (192.168.x.x) são bloqueados por padrão (SSRF protection)
+# ============================================================================
+mcpSettings:
+  allowedDomains:
+    - "${SERVER_IP}"
+    - "librechat_actual_budget_mcp"
+
+# ============================================================================
 # ENDPOINTS DE IA
 # Groq e DeepSeek usam a chave global definida nas variáveis de ambiente.
 # ============================================================================
