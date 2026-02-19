@@ -14,7 +14,6 @@ version: "3.7"
 #
 # Componentes MCP (desativados — descomentar quando quiser ativar):
 #   supergateway   → Bridge stdio MCP → SSE            (host: ${SUPERGATEWAY_PORT:-4001})
-#   mcpo           → Proxy MCP → OpenAPI REST + Swagger(host: ${MCPO_PORT:-4002})
 #   swagger_mcp    → Bridge OpenAPI spec → MCP via SSE (host: ${SWAGGER_MCP_PORT:-4003})
 # ============================================================================
 # Pré-requisitos de rede (criar uma única vez):
@@ -43,7 +42,6 @@ x-images:
   rag_api:      &rag_image          ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
   # MCP (desativado):
   # supergateway: &supergateway_image node:22-alpine
-  # mcpo:         &mcpo_image         ghcr.io/open-webui/mcpo:main
 
 # ============================================================================
 # DNS COMUM (reutilizado via YAML anchor)
@@ -217,7 +215,6 @@ services:
     networks:
       - librechat_internal
       - proxy_network
-      # - mcp_internal   # descomentar ao ativar os serviços MCP
     <<: *common_dns
     ports:
       - "${LIBRECHAT_PORT:-4080}:3080"
@@ -234,6 +231,9 @@ services:
       ## RAG — desativado (descomentar ao ativar rag_api)
       # - RAG_PORT=8000
       # - RAG_API_URL=http://rag_api:8000
+      ## MCP — serviços via porta do host
+      - SUPERGATEWAY_HOST=${SUPERGATEWAY_HOST}
+      - SWAGGER_MCP_HOST=${SWAGGER_MCP_HOST}
       ## Autenticação
       - ALLOW_EMAIL_LOGIN=${ALLOW_EMAIL_LOGIN:-true}
       - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-true}
@@ -288,112 +288,72 @@ services:
   # Para ativar: descomentar os blocos abaixo + mcp_internal nas networks
   # ==========================================================================
 
-  # supergateway:
-  #   image: node:22-alpine
-  #   networks:
-  #     - mcp_internal
-  #     - proxy_network
-  #   ports:
-  #     - "${SUPERGATEWAY_PORT:-4001}:8080"
-  #   entrypoint: ["/bin/sh", "-c"]
-  #   command:
-  #     - "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 45s
+  supergateway:
+    image: node:22-alpine
+    networks:
+      - proxy_network
+    ports:
+      - "${SUPERGATEWAY_PORT:-4001}:8080"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "npx -y supergateway --port 8080 --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
 
-  # swagger_mcp:
-  #   image: node:22-alpine
-  #   networks:
-  #     - mcp_internal
-  #     - proxy_network
-  #   ports:
-  #     - "${SWAGGER_MCP_PORT:-4003}:8081"
-  #   entrypoint: ["/bin/sh", "-c"]
-  #   command:
-  #     - "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
+  swagger_mcp:
+    image: node:22-alpine
+    networks:
+      - proxy_network
+    ports:
+      - "${SWAGGER_MCP_PORT:-4003}:8081"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "npx -y supergateway --port 8081 --stdio 'npx -y @openapi-mcp/server ${SWAGGER_MCP_SPEC_URL}' --cors --healthEndpoint /health"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
-  # mcpo:
-  #   image: ghcr.io/open-webui/mcpo:main
-  #   networks:
-  #     - mcp_internal
-  #     - proxy_network
-  #   ports:
-  #     - "${MCPO_PORT:-4002}:8000"
-  #   command: >-
-  #     --port 8000
-  #     --api-key ${MCPO_API_KEY}
-  #     --config /app/config.json
-  #   configs:
-  #     - source: mcpo_config
-  #       target: /app/config.json
-  #       mode: 0444
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
 
   # ==========================================================================
   # CLOUDFLARED — já está rodando como serviço separado no seu ambiente.
@@ -410,9 +370,6 @@ configs:
   librechat_config:
     external: true
     name: librechat_config
-  # mcpo_config:        # descomentar ao ativar mcpo
-  #   external: true
-  #   name: mcpo_config
 
 # ============================================================================
 # VOLUMES
@@ -445,11 +402,6 @@ networks:
   librechat_internal:
     driver: overlay
     internal: true
-
-  # Rede MCP interna (desativada — descomentar ao ativar serviços MCP)
-  # mcp_internal:
-  #   driver: overlay
-  #   internal: true
 
   # Rede compartilhada com Cloudflared (deve existir antes do deploy)
   proxy_network:

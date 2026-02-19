@@ -12,20 +12,20 @@ version: 1.1.6
 cache: true
 
 # ============================================================================
-# SERVIDORES MCP — desativados
-# Descomentar ao ativar os serviços MCP na stack
+# SERVIDORES MCP
 # ============================================================================
-# mcpServers:
-#   supergateway:
-#     type: sse
-#     url: "http://supergateway:8080/sse"
-#     timeout: 60000
-#     initTimeout: 15000
-#   swagger-mcp:
-#     type: sse
-#     url: "http://swagger_mcp:8081/sse"
-#     timeout: 60000
-#     initTimeout: 15000
+mcpServers:
+  supergateway:
+    type: sse
+    url: "http://${SUPERGATEWAY_HOST}:${SUPERGATEWAY_PORT:-4001}/sse"
+    timeout: 60000
+    initTimeout: 15000
+
+  swagger-mcp:
+    type: sse
+    url: "http://${SWAGGER_MCP_HOST}:${SWAGGER_MCP_PORT:-4003}/sse"
+    timeout: 60000
+    initTimeout: 15000
 
 # ============================================================================
 # ENDPOINTS DE IA
