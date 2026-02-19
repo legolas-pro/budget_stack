@@ -15,15 +15,7 @@ cache: true
 # SERVIDORES MCP
 # ============================================================================
 mcpServers:
-  server-everything:
-    type: stdio
-    command: npx
-    args:
-      - -y
-      - "@modelcontextprotocol/server-everything"
-    timeout: 60000
-
-  swagger:
+  actual-budget:
     type: stdio
     command: npx
     args:
