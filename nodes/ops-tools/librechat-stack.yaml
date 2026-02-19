@@ -333,7 +333,7 @@ services:
       - "4003:8081"
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "npm install -g supergateway @openapi-mcp/server && supergateway --port 8081 --stateless --stdio 'openapi-mcp-server http://192.168.68.115:5007/api-docs/swagger.json' --cors --healthEndpoint /health"
+      - "npm install -g supergateway @openapi-mcp/server && supergateway --port 8081 --stateless --stdio 'node /usr/local/bin/openapi-mcp-server http://192.168.68.115:5007/api-docs/swagger.json' --cors --healthEndpoint /health"
   #   deploy:
   #     mode: replicated
   #     replicas: 1
