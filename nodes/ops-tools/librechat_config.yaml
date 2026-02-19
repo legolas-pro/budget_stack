@@ -23,6 +23,7 @@ mcpServers:
       - openapi-mcp-server
       - "http://192.168.68.115:5007/api-docs/swagger.json"
     timeout: 60000
+    iconURL: "https://avatars.githubusercontent.com/u/37879538?v=4"
 
 # ============================================================================
 # ENDPOINTS DE IA
