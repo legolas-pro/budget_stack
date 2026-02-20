@@ -95,9 +95,11 @@ services:
     image: node:22
     networks:
       - actual_internal   # acesso ao api:5007
-      - proxy_network     # acessível pelo supergateway do LibreChat
+      - proxy_network     # acessível pelo LibreChat
     ports:
       - "4003:8081"
+    environment:
+      - ACTUAL_API_KEY=${ACTUAL_API_KEY}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
@@ -111,7 +113,8 @@ services:
         })});fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
         node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
         --transport http --port 8081 --host 0.0.0.0
-        --api-base-url http://api:5007
+        --api-base-url http://api:5007/v1
+        --headers "x-api-key:$$ACTUAL_API_KEY"
         --openapi-spec /tmp/spec.json
     deploy:
       mode: replicated
