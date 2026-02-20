@@ -87,7 +87,9 @@ services:
   # Acessível internamente: http://actual_openapi_mcp:8081/mcp (via proxy_network)
   # Acessível externamente: http://192.168.68.115:4003/mcp (debug)
   # LibreChat acessa via supergateway na librechat-stack (overlay network)
-  # Problema de nomes longos: operationIds truncados para 45 chars via preprocessamento
+  # Problema de nomes longos: 0 operações têm operationId no swagger do Actual Budget.
+  # O script gera operationId curtos (≤63 chars) para todas as operações a partir
+  # de method+path, garantindo compatibilidade com DeepSeek/OpenAI (limite: 64 chars).
   # ==========================================================================
   openapi_mcp:
     image: node:22
@@ -101,9 +103,11 @@ services:
       - >
         npm install -g @ivotoby/openapi-mcp-server &&
         curl -sf http://api:5007/api-docs/swagger.json -o /tmp/raw.json &&
-        node -e "var fs=require('fs'),d=JSON.parse(fs.readFileSync('/tmp/raw.json','utf8'));
-        Object.values(d.paths||{}).forEach(function(m){Object.values(m).forEach(function(o){
-        if(o&&o.operationId)o.operationId=o.operationId.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,45)
+        node -e "var fs=require('fs');var d=JSON.parse(fs.readFileSync('/tmp/raw.json','utf8'));
+        Object.keys(d.paths||{}).forEach(function(path){Object.keys(d.paths[path]).forEach(function(method){
+        var op=d.paths[path][method];if(!op||typeof op!=='object') return;
+        var base=(op.operationId||(method+'_'+path)).replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+        op.operationId=base.slice(0,63);
         })});fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
         node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
         --transport http --port 8081 --host 0.0.0.0
