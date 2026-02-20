@@ -110,7 +110,11 @@ services:
         var op=d.paths[path][method];if(!op||typeof op!=='object') return;
         var base=(op.operationId||(method+'_'+path)).replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$$/g,'');
         op.operationId=base.slice(0,56);
-        })});fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
+        })});var sc=d.definitions||(d.components&&d.components.schemas)||{};
+        Object.keys(sc).forEach(function(n){var s=sc[n];if(s&&s.properties&&s.properties.groupId&&s.properties.cloudFileId){
+        s.properties.groupId.description='This is the Sync ID (budgetSyncId) — always use this field as budgetSyncId in all budget-specific routes';
+        s.properties.cloudFileId.description='Internal cloud file identifier — do NOT use as budgetSyncId';}});
+        fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
         node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
         --transport http --port 8081 --host 0.0.0.0
         --api-base-url http://api:5007/v1
