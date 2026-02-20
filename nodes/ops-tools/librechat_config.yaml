@@ -19,6 +19,9 @@ mcpSettings:
   allowedDomains:
     - "192.168.68.115"
     - "*.partiuexecutivo.com.br"
+    - "openapi_mcp"
+    - "localhost"
+    - "0.0.0.0"
 
 # ============================================================================
 # ENDPOINTS DE IA
