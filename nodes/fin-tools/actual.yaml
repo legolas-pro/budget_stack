@@ -17,7 +17,7 @@ version: "3.7"
 #   - mcp: sstefanov/actual-mcp (incompatível com API atual)
 #
 # DEPLOY:
-#   docker stack deploy -c actual.yaml actual
+#   docker stack deploy -c actual.yaml actual --env-file actual.env
 #
 # PRÉ-REQUISITOS DE REDE (uma única vez):
 #   docker network create --driver=overlay --attachable proxy_network
@@ -239,4 +239,4 @@ networks:
 
   proxy_network:
     external: true
-    name: proxy_network
+    name: ${PROXY_NETWORK:-proxy_network}
