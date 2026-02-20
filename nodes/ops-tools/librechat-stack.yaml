@@ -13,7 +13,7 @@ version: "3.7"
 #   rag_api        → Retrieval Augmented Generation    (interno)
 #
 # Componentes MCP:
-#   supergateway → Bridge SSE → actual_openapi_mcp:8081/mcp  (host: ${SUPERGATEWAY_PORT:-4001})
+#   supergateway → Bridge SSE → openapi_mcp:8081/mcp  (host: ${SUPERGATEWAY_PORT:-4001})
 #                  O openapi_mcp vive na stack `actual` (actual.yaml)
 # ============================================================================
 # Pré-requisitos de rede (criar uma única vez):
@@ -282,7 +282,7 @@ services:
 
   # ==========================================================================
   # SUPERGATEWAY — bridge SSE para o MCP do Actual Budget
-  # O openapi_mcp vive na stack `actual` (actual_openapi_mcp:8081/mcp)
+  # O openapi_mcp vive na stack `actual` (openapi_mcp:8081/mcp via proxy_network)
   # Este serviço converte Streamable HTTP → SSE para o LibreChat consumir
   # Conectar via UI: SSE → http://192.168.68.115:4001/sse
   # ==========================================================================
@@ -294,7 +294,7 @@ services:
       - "${SUPERGATEWAY_PORT:-4001}:8080"
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "npx -y supergateway --port 8080 --streamableHttp http://actual_openapi_mcp:8081/mcp --outputTransport sse --cors --healthEndpoint /health"
+      - "npx -y supergateway --port 8080 --streamableHttp http://openapi_mcp:8081/mcp --outputTransport sse --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1
