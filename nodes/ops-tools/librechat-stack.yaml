@@ -13,8 +13,8 @@ version: "3.7"
 #   rag_api        → Retrieval Augmented Generation    (interno)
 #
 # Componentes MCP:
-#   actual_budget_mcp → Actual Budget OpenAPI → MCP HTTP (Streamable HTTP, host: 4003)
-#   supergateway      → Bridge stdio MCP → SSE (desativado — manter comentado)
+#   supergateway → Bridge SSE → actual_openapi_mcp:8081/mcp  (host: ${SUPERGATEWAY_PORT:-4001})
+#                  O openapi_mcp vive na stack `actual` (actual.yaml)
 # ============================================================================
 # Pré-requisitos de rede (criar uma única vez):
 #   docker network create --driver=overlay --attachable proxy_network
@@ -281,71 +281,20 @@ services:
       start_period: 90s
 
   # ==========================================================================
-  # MCP via SSE — independente do LibreChat
-  # Conectar via UI: Adicionar Servidor MCP → SSE → URL abaixo
-  # supergateway: comentado (não necessário por enquanto)
+  # SUPERGATEWAY — bridge SSE para o MCP do Actual Budget
+  # O openapi_mcp vive na stack `actual` (actual_openapi_mcp:8081/mcp)
+  # Este serviço converte Streamable HTTP → SSE para o LibreChat consumir
+  # Conectar via UI: SSE → http://192.168.68.115:4001/sse
   # ==========================================================================
-
-  # supergateway:
-  #   image: node:22-alpine
-  #   networks:
-  #     - proxy_network
-  #   ports:
-  #     - "${SUPERGATEWAY_PORT:-4001}:8080"
-  #   entrypoint: ["/bin/sh", "-c"]
-  #   command:
-  #     - "npx -y supergateway --port 8080 --stateless --stdio '${SUPERGATEWAY_MCP_COMMAND}' --cors --healthEndpoint /health"
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 5s
-  #       max_attempts: 3
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 45s
-
-  # ==========================================================================
-  # actual-budget MCP — Actual Budget API como servidor MCP HTTP nativo
-  # Sem supergateway: @ivotoby/openapi-mcp-server usa transport HTTP diretamente
-  # Conectar via UI: Streamable HTTP → http://192.168.68.115:4003/mcp
-  # Motivo: supergateway stdio→SSE mantém 1 processo e falha com "Already
-  #         connected to transport" na segunda conexão. HTTP nativo não tem
-  #         esse problema — cada request é independente.
-  # ==========================================================================
-  actual_budget_mcp:
+  supergateway:
     image: node:22
     networks:
       - proxy_network
     ports:
-      - "4003:8081"
+      - "${SUPERGATEWAY_PORT:-4001}:8080"
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >
-        npm install -g @ivotoby/openapi-mcp-server &&
-        curl -sf http://192.168.68.115:5007/api-docs/swagger.json -o /tmp/raw.json &&
-        node -e "var fs=require('fs'),d=JSON.parse(fs.readFileSync('/tmp/raw.json','utf8'));
-        Object.values(d.paths||{}).forEach(function(m){Object.values(m).forEach(function(o){
-        if(o&&o.operationId)o.operationId=o.operationId.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,45)
-        })});fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
-        node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
-        --transport http --port 8081 --host 0.0.0.0
-        --api-base-url http://192.168.68.115:5007
-        --openapi-spec /tmp/spec.json
+      - "npx -y supergateway --port 8080 --streamableHttp http://actual_openapi_mcp:8081/mcp --outputTransport sse --cors --healthEndpoint /health"
     deploy:
       mode: replicated
       replicas: 1
@@ -355,20 +304,20 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: "0.1"
-          memory: 128M
+          memory: 64M
       restart_policy:
         condition: on-failure
-        delay: 10s
-        max_attempts: 5
+        delay: 5s
+        max_attempts: 3
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8081' 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 45s
   # ==========================================================================
   # CLOUDFLARED — já está rodando como serviço separado no seu ambiente.
   # Adicione no painel: Zero Trust → Tunnels → seu túnel → Public Hostnames:

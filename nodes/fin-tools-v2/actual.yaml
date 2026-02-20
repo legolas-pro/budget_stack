@@ -2,20 +2,25 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
-# VERSÃO: 1.0
+# VERSÃO: 1.1
 # VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 #
 # SERVIÇOS ATIVOS:
-#   - Actual Budget: Orçamento pessoal local-first (Node.js/SQLite)
-#   - Actual HTTP API: REST API para integração com N8N
+#   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
+#   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
+#   - openapi_mcp → MCP via swagger do `api` (Streamable HTTP) host: 4003
+#                   Reachable via overlay como: actual_openapi_mcp:8081
 #
 # SERVIÇOS COMENTADOS:
-#   - Actual MCP: Incompatível com API atual do Actual Budget
+#   - mcp: sstefanov/actual-mcp (incompatível com API atual)
 #
 # DEPLOY:
 #   docker stack deploy -c actual.yaml actual
+#
+# PRÉ-REQUISITOS DE REDE (uma única vez):
+#   docker network create --driver=overlay --attachable proxy_network
 #
 # ============================================================================
 
@@ -76,6 +81,57 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # ==========================================================================
+  # OPENAPI MCP — converte swagger do `api` em servidor MCP (Streamable HTTP)
+  # Acessível internamente: http://actual_openapi_mcp:8081/mcp (via proxy_network)
+  # Acessível externamente: http://192.168.68.115:4003/mcp (debug)
+  # LibreChat acessa via supergateway na librechat-stack (overlay network)
+  # Problema de nomes longos: operationIds truncados para 45 chars via preprocessamento
+  # ==========================================================================
+  openapi_mcp:
+    image: node:22
+    networks:
+      - actual_internal   # acesso ao api:5007
+      - proxy_network     # acessível pelo supergateway do LibreChat
+    ports:
+      - "4003:8081"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        npm install -g @ivotoby/openapi-mcp-server &&
+        curl -sf http://api:5007/api-docs/swagger.json -o /tmp/raw.json &&
+        node -e "var fs=require('fs'),d=JSON.parse(fs.readFileSync('/tmp/raw.json','utf8'));
+        Object.values(d.paths||{}).forEach(function(m){Object.values(m).forEach(function(o){
+        if(o&&o.operationId)o.operationId=o.operationId.replace(/[^a-zA-Z0-9_]/g,'_').slice(0,45)
+        })});fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
+        node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
+        --transport http --port 8081 --host 0.0.0.0
+        --api-base-url http://api:5007
+        --openapi-spec /tmp/spec.json
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8081' 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # ==========================================================================
   # ACTUAL MCP - COMENTADO (incompatível com API atual do Actual)
@@ -180,3 +236,7 @@ networks:
   actual_internal:
     driver: overlay
     internal: true
+
+  proxy_network:
+    external: true
+    name: proxy_network
