@@ -6,7 +6,8 @@ services:
     deploy:
       replicas: ${FRESHRSS_DB_REPLICAS:-1}
       placement:
-        constraints: [node.role == ${FRESHRSS_DB_NODE_ROLE:-manager}]
+        constraints:
+          - node.role == ${FRESHRSS_DB_NODE_ROLE:-manager}
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -37,7 +38,8 @@ services:
         delay: 5s
         max_attempts: 3
       placement:
-        constraints: [node.role == ${FRESHRSS_NODE_ROLE:-worker}]
+        constraints:
+          - node.role == ${FRESHRSS_NODE_ROLE:-worker}
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.freshrss.rule=Host(`${FRESHRSS_DOMAIN:-freshrss.seudominio.com}`)"
