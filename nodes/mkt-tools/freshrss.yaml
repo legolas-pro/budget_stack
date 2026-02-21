@@ -41,6 +41,8 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.freshrss.rule=Host(`${FRESHRSS_DOMAIN:-freshrss.seudominio.com}`)"
         - "traefik.http.services.freshrss.loadbalancer.server.port=${FRESHRSS_PORT:-80}"
+    ports:
+      - "${FRESHRSS_PORT:-8080}:80"
     environment:
       TZ: ${FRESHRSS_TZ:-America/Sao_Paulo}
       CRON_MIN: ${FRESHRSS_CRON_MIN:-*/10}
