@@ -37,9 +37,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-      placement:
-        constraints:
-          - node.role == ${FRESHRSS_NODE_ROLE:-worker}
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.freshrss.rule=Host(`${FRESHRSS_DOMAIN:-freshrss.seudominio.com}`)"
