@@ -10,17 +10,11 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
-#   - openapi_mcp → MCP via swagger do `api` (Streamable HTTP) host: 4003
-#                   Reachable via overlay como: actual_openapi_mcp:8081
-#
 # SERVIÇOS COMENTADOS:
 #   - mcp: sstefanov/actual-mcp (incompatível com API atual)
 #
 # DEPLOY:
 #   docker stack deploy -c actual.yaml actual --env-file actual.env
-#
-# PRÉ-REQUISITOS DE REDE (uma única vez):
-#   docker network create --driver=overlay --attachable proxy_network
 #
 # ============================================================================
 
@@ -81,118 +75,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-
-  # ==========================================================================
-  # OPENAPI MCP — converte swagger do `api` em servidor MCP (Streamable HTTP)
-  # Acessível externamente: http://192.168.68.115:4003/mcp
-  # LibreChat acessa diretamente via mcpServers no librechat_config.yaml
-  # Problema de nomes longos: 0 operações têm operationId no swagger do Actual Budget.
-  # O script gera operationId curtos (≤56 chars) para todas as operações a partir
-  # de method+path. Limite conservador: o servidor pode ignorar operationIds longos
-  # e gerar nomes próprios que às vezes excedem 64 chars (limite OpenAI/DeepSeek).
-  # ==========================================================================
-  openapi_mcp:
-    image: node:22
-    networks:
-      - actual_internal   # acesso ao api:5007
-      - proxy_network     # acessível pelo LibreChat
-    ports:
-      - "4003:8081"
-    environment:
-      - ACTUAL_API_KEY=${ACTUAL_API_KEY}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >
-        npm install -g @ivotoby/openapi-mcp-server &&
-        curl -sf http://api:5007/api-docs/swagger.json -o /tmp/raw.json &&
-        node -e "var fs=require('fs');var d=JSON.parse(fs.readFileSync('/tmp/raw.json','utf8'));
-        Object.keys(d.paths||{}).forEach(function(path){Object.keys(d.paths[path]).forEach(function(method){
-        var op=d.paths[path][method];if(!op||typeof op!=='object') return;
-        var base=(op.operationId||(method+'_'+path)).replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$$/g,'');
-        op.operationId=base.slice(0,56);
-        })});var sc=d.definitions||(d.components&&d.components.schemas)||{};
-        Object.keys(sc).forEach(function(n){var s=sc[n];if(s&&s.properties&&s.properties.groupId&&s.properties.cloudFileId){
-        s.properties.groupId.description='This is the Sync ID (budgetSyncId) — always use this field as budgetSyncId in all budget-specific routes';
-        s.properties.cloudFileId.description='Internal cloud file identifier — do NOT use as budgetSyncId';}});
-        fs.writeFileSync('/tmp/spec.json',JSON.stringify(d));" &&
-        node /usr/local/lib/node_modules/@ivotoby/openapi-mcp-server/bin/mcp-server.js
-        --transport http --port 8081 --host 0.0.0.0
-        --api-base-url http://api:5007/v1
-        --headers "x-api-key:$$ACTUAL_API_KEY"
-        --openapi-spec /tmp/spec.json
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8081' 2>/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  # ==========================================================================
-  # ACTUAL MCP - COMENTADO (incompatível com API atual do Actual)
-  # https://github.com/s-stefanov/actual-mcp
-  # ==========================================================================
-  # mcp:
-  #   image: *actual_mcp_image
-  #   command: ["--sse", "--enable-write"]
-  #   networks:
-  #     - actual_internal
-  #   ports:
-  #     - "${ACTUAL_MCP_PORT:-3001}:3000"
-  #   environment:
-  #     - ACTUAL_SERVER_URL=http://app:5006
-  #     - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-  #     - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID:-}
-  #     - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
-  #     - TZ=America/Sao_Paulo
-  #   volumes:
-  #     - actual_mcp_data:/data
-  #   depends_on:
-  #     - app
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 1
-  #     placement:
-  #       constraints:
-  #         - node.role == manager
-  #     resources:
-  #       limits:
-  #         cpus: "0.5"
-  #         memory: 512M
-  #       reservations:
-  #         cpus: "0.1"
-  #         memory: 128M
-  #     restart_policy:
-  #       condition: on-failure
-  #       delay: 10s
-  #       max_attempts: 5
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/sse || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     start_period: 60s
-  #     retries: 5
-
-  # ==========================================================================
-  # ACTUAL HTTP API - REST API para integração com N8N
-  # https://github.com/jhonderson/actual-http-api
-  # ==========================================================================
+      
   api:
     image: *actual_http_api_image
     networks:
@@ -248,6 +131,3 @@ networks:
     driver: overlay
     internal: true
 
-  proxy_network:
-    external: true
-    name: ${PROXY_NETWORK:-proxy_network}
