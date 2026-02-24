@@ -13,7 +13,7 @@ version: "3.7"
 # ============================================================================
 x-images:
   postgres: &postgres_image postgres:14-alpine
-  n8n: &n8n_image n8nio/n8n:latest
+  n8n: &n8n_image ${N8N_IMAGE:-n8nio/n8n:latest}
   redis: &redis_image redis:7-alpine
 
 # ============================================================================
