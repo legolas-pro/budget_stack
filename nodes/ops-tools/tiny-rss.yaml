@@ -33,6 +33,7 @@ x-ttrss-env: &ttrss_env
     - TTRSS_DB_NAME=${TTRSS_DB_NAME:-postgres}
     - ADMIN_USER_PASS=${ADMIN_USER_PASS}
     - ADMIN_USER_ACCESS_LEVEL=${ADMIN_USER_ACCESS_LEVEL:-10}
+    - TTRSS_SELF_URL_PATH=${TTRSS_SELF_URL_PATH}
 
 x-ttrss-volumes: &ttrss_volumes
   volumes:
