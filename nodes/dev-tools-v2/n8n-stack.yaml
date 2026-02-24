@@ -130,8 +130,8 @@ services:
           cpus: "2"
           memory: 2048M
         reservations:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "0.25"
+          memory: 256M
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -177,8 +177,8 @@ services:
           cpus: "1.0"
           memory: 1024M
         reservations:
-          cpus: "0.3"
-          memory: 512M
+          cpus: "0.1"
+          memory: 128M
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -216,16 +216,13 @@ services:
     deploy:
       mode: replicated
       replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
       resources:
         limits:
           cpus: "1.0"
           memory: 1024M
         reservations:
-          cpus: "0.3"
-          memory: 512M
+          cpus: "0.1"
+          memory: 128M
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -313,8 +310,8 @@ services:
           cpus: "1"
           memory: 2048M
         reservations:
-          cpus: "0.25"
-          memory: 512M
+          cpus: "0.1"
+          memory: 128M
       restart_policy:
         condition: on-failure
         delay: 5s
