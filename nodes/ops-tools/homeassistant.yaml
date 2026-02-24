@@ -2,11 +2,14 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Home Assistant (Automação Residencial)
-# VERSÃO: 1.2
+# VERSÃO: 1.3
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 # Uso: docker stack deploy -c homeassistant.yaml homeassistant --env-file homeassistant.env
 # ============================================================================
+# CONFIG NECESSÁRIA (criar via Portainer > Configs antes do deploy):
+#   Nome:     homeassistant_config
+#   Conteúdo: ver homeassistant_configuration.yaml neste diretório
 # ============================================================================
 
 # ============================================================================
@@ -41,6 +44,12 @@ services:
       ## D-Bus — necessário para integração Bluetooth do host
       - /run/dbus:/run/dbus
 
+    configs:
+      ## configuration.yaml gerenciado via Portainer > Configs
+      - source: homeassistant_config
+        target: /config/configuration.yaml
+        mode: 0444
+
     deploy:
       mode: replicated
       replicas: 1
@@ -72,6 +81,14 @@ services:
 volumes:
   homeassistant_config:
     name: ${STACK_PREFIX:-homeassistant}_config
+
+# ============================================================================
+# CONFIGS
+# ============================================================================
+configs:
+  homeassistant_config:
+    external: true
+    name: ${STACK_PREFIX:-homeassistant}_configuration
 
 # ============================================================================
 # NETWORKS
