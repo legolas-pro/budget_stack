@@ -1,0 +1,91 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Home Assistant (Automação Residencial)
+# VERSÃO: 1.2
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Uso: docker stack deploy -c homeassistant.yaml homeassistant --env-file homeassistant.env
+# ============================================================================
+# Volumes necessários (criar antes do deploy):
+#   docker volume create homeassistant_config
+#
+# ATENÇÃO — NODE PLACEMENT:
+#   Pino o container ao nó que possui o hardware (Zigbee dongle, etc.).
+#   Adicione a label ao nó antes do deploy:
+#     docker node update --label-add homeassistant=true <node-id>
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  homeassistant: &homeassistant_image ${HA_IMAGE:-ghcr.io/home-assistant/home-assistant:stable}
+
+services:
+  # ==========================================================================
+  # HOME ASSISTANT - Plataforma de Automação Residencial
+  # ==========================================================================
+  homeassistant:
+    image: *homeassistant_image
+    networks:
+      ## Rede externa configurável via NETWORK_NAME no env (ex: cloudflared_network)
+      - proxy_network
+
+    ports:
+      - "${HA_PORT:-8123}:8123"
+
+    ## Necessário para acesso a hardware (USB, Bluetooth, GPIO, etc.)
+    privileged: true
+
+    environment:
+      ## ===== LOCALIZAÇÃO =====
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    volumes:
+      ## Configuração persistente
+      - homeassistant_config:/config
+      ## D-Bus — necessário para integração Bluetooth do host
+      - /run/dbus:/run/dbus:ro
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          ## Pino ao nó com label homeassistant=true (ver instruções acima)
+          - node.labels.homeassistant == true
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${HA_PORT:-8123}/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  homeassistant_config:
+    external: true
+    name: ${STACK_PREFIX:-homeassistant}_config
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  proxy_network:
+    external: true
+    name: ${NETWORK_NAME}
