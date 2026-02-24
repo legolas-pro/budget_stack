@@ -24,7 +24,7 @@ x-n8n-common-env: &n8n_common_env
   - N8N_FIX_MIGRATIONS=true
   - DB_TYPE=postgresdb
   - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
-  - DB_POSTGRESDB_HOST=postgres
+  - DB_POSTGRESDB_HOST=${STACK_NAME:-n8n}_postgres
   - DB_POSTGRESDB_PORT=5432
   - DB_POSTGRESDB_USER=${DB_USER:-postgres}
   - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
@@ -63,7 +63,7 @@ x-n8n-common-env: &n8n_common_env
   - N8N_SMTP_SSL=false
 
   ## ===== REDIS/QUEUE =====
-  - QUEUE_BULL_REDIS_HOST=n8n_redis
+  - QUEUE_BULL_REDIS_HOST=${STACK_NAME:-n8n}_n8n_redis
   - QUEUE_BULL_REDIS_PORT=6379
   - QUEUE_BULL_REDIS_DB=${REDIS_DB:-1}
 
@@ -264,8 +264,8 @@ services:
           cpus: "1.5"
           memory: 1536M
         reservations:
-          cpus: "0.4"
-          memory: 768M
+          cpus: "0.2"
+          memory: 256M
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -333,10 +333,10 @@ services:
 volumes:
   postgres_data:
     external: true
-    name: ${STACK_PREFIX:-n8n}_postgres_data
+    name: ${STACK_NAME:-n8n}_postgres_data
   n8n_redis:
     external: true
-    name: ${STACK_PREFIX:-n8n}_redis_data
+    name: ${STACK_NAME:-n8n}_redis_data
 
 # ============================================================================
 # NETWORKS
