@@ -8,7 +8,7 @@ version: "3.7"
 # Uso: docker stack deploy -c homeassistant.yaml homeassistant --env-file homeassistant.env
 # ============================================================================
 # CONFIG NECESSÁRIA (criar via Portainer > Configs antes do deploy):
-#   Nome:     homeassistant_config
+#   Nome:     home-assistant_config
 #   Conteúdo: ver homeassistant_configuration.yaml neste diretório
 # ============================================================================
 
@@ -88,7 +88,7 @@ volumes:
 configs:
   homeassistant_config:
     external: true
-    name: ${STACK_PREFIX:-homeassistant}_configuration
+    name: home-assistant_config
 
 # ============================================================================
 # NETWORKS
