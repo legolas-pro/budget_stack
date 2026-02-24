@@ -1,0 +1,133 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Actual Budget - Orçamento Pessoal
+# VERSÃO: 1.1
+# VPS: fin-tools
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+#
+# SERVIÇOS ATIVOS:
+#   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
+#   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
+# SERVIÇOS COMENTADOS:
+#   - mcp: sstefanov/actual-mcp (incompatível com API atual)
+#
+# DEPLOY:
+#   docker stack deploy -c actual.yaml actual --env-file actual.env
+#
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  actual: &actual_image actualbudget/actual-server:latest
+  # actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest  # INCOMPATÍVEL com API atual
+  actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
+
+services:
+  # ==========================================================================
+  # ACTUAL BUDGET - Orçamento Pessoal (Local-First)
+  # ==========================================================================
+  app:
+    image: *actual_image
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_PORT:-5006}:5006"
+
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    dns_search: []
+
+    environment:
+      ## ===== LOCALIZAÇÃO =====
+      - TZ=America/Sao_Paulo
+
+    volumes:
+      - actual_data:/data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD", "node", "src/scripts/health-check.js"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+      
+  api:
+    image: *actual_http_api_image
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_API_PORT:-5007}:5007"
+
+    environment:
+      - ACTUAL_SERVER_URL=http://app:5006
+      - ACTUAL_SERVER_PASSWORD=${ACTUAL_PASSWORD}
+      - API_KEY=${ACTUAL_API_KEY}
+      - TZ=America/Sao_Paulo
+
+    depends_on:
+      - app
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      disable: true
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  actual_data:
+    driver: local
+  # actual_mcp_data:
+  #   driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  actual_internal:
+    driver: overlay
+    internal: true
+
