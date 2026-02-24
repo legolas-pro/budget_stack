@@ -39,7 +39,7 @@ services:
       ## Configuração persistente
       - homeassistant_config:/config
       ## D-Bus — necessário para integração Bluetooth do host
-      - /run/dbus:/run/dbus:ro
+      - /run/dbus:/run/dbus
 
     deploy:
       mode: replicated
