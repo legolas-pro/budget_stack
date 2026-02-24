@@ -24,7 +24,7 @@ x-n8n-common-env: &n8n_common_env
   - N8N_FIX_MIGRATIONS=true
   - DB_TYPE=postgresdb
   - DB_POSTGRESDB_DATABASE=${DB_NAME:-n8n_queue}
-  - DB_POSTGRESDB_HOST=postgres
+  - DB_POSTGRESDB_HOST=${STACK_PREFIX:-n8n}_postgres
   - DB_POSTGRESDB_PORT=5432
   - DB_POSTGRESDB_USER=${DB_USER:-postgres}
   - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
