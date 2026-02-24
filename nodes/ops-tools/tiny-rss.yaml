@@ -88,8 +88,7 @@ services:
     networks:
       - internal_network
 
-    <<: *ttrss_env
-    <<: *ttrss_volumes
+    <<: [*ttrss_env, *ttrss_volumes]
 
     deploy:
       mode: replicated
@@ -124,8 +123,7 @@ services:
     networks:
       - internal_network
 
-    <<: *ttrss_env
-    <<: *ttrss_volumes
+    <<: [*ttrss_env, *ttrss_volumes]
 
     command: /opt/tt-rss/updater.sh
 
