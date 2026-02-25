@@ -34,6 +34,9 @@ x-ttrss-env: &ttrss_env
     - ADMIN_USER_PASS=${ADMIN_USER_PASS}
     - ADMIN_USER_ACCESS_LEVEL=${ADMIN_USER_ACCESS_LEVEL:-10}
     - TTRSS_SELF_URL_PATH=${TTRSS_SELF_URL_PATH}
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
 
 x-ttrss-volumes: &ttrss_volumes
   volumes:
