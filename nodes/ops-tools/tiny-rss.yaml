@@ -204,7 +204,6 @@ volumes:
 networks:
   internal_network:
     driver: overlay
-    internal: true
   proxy_network:
     external: true
     name: ${NETWORK_NAME}
