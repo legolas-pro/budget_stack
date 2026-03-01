@@ -1,0 +1,188 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Metabase (BI / Analytics)
+# VERSÃO: 1.0
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Uso: docker stack deploy -c metabase.yaml metabase --env-file metabase.env
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  metabase: &metabase_image ${METABASE_IMAGE:-metabase/metabase:latest}
+  postgres: &postgres_image ${POSTGRES_IMAGE:-postgres:16-alpine}
+  metabase_mcp: &metabase_mcp_image ${MCP_IMAGE:-mcp/metabase:latest}
+
+services:
+  # ==========================================================================
+  # POSTGRESQL - Banco de Dados do Metabase
+  # ==========================================================================
+  postgres:
+    image: *postgres_image
+    networks:
+      - internal_network
+
+    environment:
+      - POSTGRES_USER=${MB_DB_USER:-metabase}
+      - POSTGRES_PASSWORD=${MB_DB_PASS}
+      - POSTGRES_DB=${MB_DB_NAME:-metabaseappdb}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    volumes:
+      - metabase_postgres_data:/var/lib/postgresql/data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MB_DB_USER:-metabase}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # METABASE - Aplicação principal
+  # ==========================================================================
+  metabase:
+    image: *metabase_image
+    networks:
+      - internal_network
+      - proxy_network
+
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+
+    environment:
+      ## ===== BANCO DE DADOS =====
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=${MB_DB_NAME:-metabaseappdb}
+      - MB_DB_PORT=5432
+      - MB_DB_USER=${MB_DB_USER:-metabase}
+      - MB_DB_PASS=${MB_DB_PASS}
+      - MB_DB_HOST=postgres
+
+      ## ===== APLICAÇÃO =====
+      - MB_SITE_URL=${MB_SITE_URL}
+      - MB_ENCRYPTION_SECRET_KEY=${MB_ENCRYPTION_SECRET_KEY}
+      - JAVA_TIMEZONE=${TZ:-America/Sao_Paulo}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    volumes:
+      ## /dev/random em alguns hosts é lento; acelera startup da JVM
+      - /dev/urandom:/dev/random:ro
+      - metabase_app_data:/metabase-data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ==========================================================================
+  # METABASE MCP - Integração Model Context Protocol (opcional)
+  # ==========================================================================
+  metabase_mcp:
+    image: *metabase_mcp_image
+    networks:
+      - internal_network
+
+    ports:
+      - "${METABASE_MCP_PORT:-3333}:3333"
+
+    environment:
+      - METABASE_URL=http://metabase:3000
+      - METABASE_USERNAME=${METABASE_USERNAME:-}
+      - METABASE_PASSWORD=${METABASE_PASSWORD:-}
+      - METABASE_API_KEY=${METABASE_API_KEY:-}
+      - MCP_MODE=http
+      - USE_FIXED_HTTP=true
+      - HOST=0.0.0.0
+      - PORT=3333
+      - LOG_LEVEL=${MCP_LOG_LEVEL:-info}
+      - AUTH_TOKEN=${MCP_AUTH_TOKEN}
+      - TRUST_PROXY=1
+      - CORS_ORIGIN=${MCP_CORS_ORIGIN:-*}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3333/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  metabase_postgres_data:
+    name: ${STACK_PREFIX:-metabase}_postgres_data
+  metabase_app_data:
+    name: ${STACK_PREFIX:-metabase}_app_data
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  internal_network:
+    driver: overlay
+    internal: true
+  proxy_network:
+    external: true
+    name: ${NETWORK_NAME}
