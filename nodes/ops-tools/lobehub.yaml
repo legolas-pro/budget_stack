@@ -294,15 +294,22 @@ services:
           memory: 256M
       restart_policy:
         condition: on-failure
-        delay: 10s
-        max_attempts: 5
+        delay: 15s
+        max_attempts: 8
+        window: 10m
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3210/ || exit 1"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get({host:'127.0.0.1',port:3210,path:'/'},()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 180s
 
 # ============================================================================
 # VOLUMES
