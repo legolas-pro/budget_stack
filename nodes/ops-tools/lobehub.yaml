@@ -251,6 +251,8 @@ services:
       - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
       - JWKS_KEY=${JWKS_KEY:-}
+      - QSTASH_TOKEN=${QSTASH_TOKEN:-}
+      - QSTASH_URL=${QSTASH_URL:-}
 
       ## ===== BANCO =====
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresql:5432/${LOBE_DB_NAME:-lobechat}
