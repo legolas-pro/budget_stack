@@ -161,7 +161,7 @@ services:
         max_attempts: 5
 
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3333/health || exit 1"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3333/health"]
       interval: 30s
       timeout: 10s
       retries: 5
