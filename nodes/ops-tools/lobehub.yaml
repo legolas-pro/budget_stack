@@ -158,17 +158,16 @@ services:
     networks:
       - lobe_internal
 
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      sh -c '
-        set -eu;
-        echo "[RustFS Init] aguardando endpoint...";
-        until mc alias set rustfs "http://rustfs:9000" "$$RUSTFS_ACCESS_KEY" "$$RUSTFS_SECRET_KEY" >/dev/null 2>&1; do
-          sleep 2;
-        done;
-        mc mb --ignore-existing "rustfs/$$RUSTFS_LOBE_BUCKET";
-        mc anonymous set download "rustfs/$$RUSTFS_LOBE_BUCKET" || true;
-        echo "[RustFS Init] bucket pronto: $$RUSTFS_LOBE_BUCKET";
-      '
+      set -eu;
+      echo "[RustFS Init] aguardando endpoint...";
+      until mc alias set rustfs "http://rustfs:9000" "$$RUSTFS_ACCESS_KEY" "$$RUSTFS_SECRET_KEY" >/dev/null 2>&1; do
+        sleep 2;
+      done;
+      mc mb --ignore-existing "rustfs/$$RUSTFS_LOBE_BUCKET";
+      mc anonymous set download "rustfs/$$RUSTFS_LOBE_BUCKET" || true;
+      echo "[RustFS Init] bucket pronto: $$RUSTFS_LOBE_BUCKET";
 
     environment:
       - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
@@ -251,7 +250,6 @@ services:
       ## ===== SEGREDOS =====
       - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
-      - NEXT_AUTH_SECRET=${AUTH_SECRET}
       - JWKS_KEY=${JWKS_KEY:-}
 
       ## ===== BANCO =====
