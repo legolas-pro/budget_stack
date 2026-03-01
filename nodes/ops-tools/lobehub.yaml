@@ -304,7 +304,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "require('http').get({host:'127.0.0.1',port:3210,path:'/'},()=>process.exit(0)).on('error',()=>process.exit(1))",
+          "const http=require('http');const req=http.get({host:'127.0.0.1',port:3210,path:'/healthz',timeout:5000},(res)=>process.exit((res.statusCode||500)<500?0:1));req.on('timeout',()=>{req.destroy();process.exit(1)});req.on('error',()=>process.exit(1));",
         ]
       interval: 30s
       timeout: 10s
