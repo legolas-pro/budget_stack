@@ -126,7 +126,7 @@ services:
 
     environment:
       # URL interna do Actual Budget — ajuste se mudar porta ou nome do serviço
-      - ACTUAL_SERVER_URL=${ACTUAL_INTERNAL_URL:-http://app:5006}
+      - ACTUAL_SERVER_URL=${ACTUAL_MCP_SERVER_URL:-http://app:5006}
       # Senha do servidor Actual (mesma usada no app)
       - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
       - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
