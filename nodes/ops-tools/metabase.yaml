@@ -14,7 +14,7 @@ version: "3.7"
 x-images:
   metabase: &metabase_image ${METABASE_IMAGE:-metabase/metabase:latest}
   postgres: &postgres_image ${POSTGRES_IMAGE:-postgres:16-alpine}
-  metabase_mcp: &metabase_mcp_image ${MCP_IMAGE:-mcp/metabase:latest}
+  metabase_mcp: &metabase_mcp_image ${MCP_IMAGE:-ghcr.io/jerichosequitin/metabase-mcp:latest}
 
 services:
   # ==========================================================================
@@ -130,9 +130,9 @@ services:
     environment:
       # URL interna do Metabase — ajuste se mudar porta ou nome do serviço
       - METABASE_URL=${METABASE_INTERNAL_URL:-http://metabase:3000}
-      # Credenciais de acesso à API: preencha API key OU usuário+senha no .env
+      # Credenciais de acesso à API: preencha API key OU e-mail+senha no .env
       # Sem ao menos uma das opções o MCP sobe mas falha em todas as chamadas
-      - METABASE_USERNAME=${METABASE_USERNAME:-}
+      - METABASE_USER_EMAIL=${METABASE_USER_EMAIL:-}
       - METABASE_PASSWORD=${METABASE_PASSWORD:-}
       - METABASE_API_KEY=${METABASE_API_KEY:-}
       - TRANSPORT=streamable-http
