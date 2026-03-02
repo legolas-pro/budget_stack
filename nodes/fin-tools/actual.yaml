@@ -2,7 +2,7 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
-# VERSÃO: 1.1
+# VERSÃO: 1.2
 # VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
@@ -10,8 +10,7 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
-# SERVIÇOS COMENTADOS:
-#   - mcp: sstefanov/actual-mcp (incompatível com API atual)
+#   - actual_mcp  → MCP via supergateway (streamableHttp)   host: ${ACTUAL_MCP_PORT:-3001}
 #
 # DEPLOY:
 #   docker stack deploy -c actual.yaml actual --env-file actual.env
@@ -23,7 +22,7 @@ version: "3.7"
 # ============================================================================
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
-  # actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest  # INCOMPATÍVEL com API atual
+  actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-actual-mcp:local}
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
 
 services:
@@ -114,14 +113,58 @@ services:
     healthcheck:
       disable: true
 
+  # ==========================================================================
+  # ACTUAL MCP - Integração Model Context Protocol
+  # ==========================================================================
+  actual_mcp:
+    image: *actual_mcp_image
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_MCP_PORT:-3001}:3001"
+
+    environment:
+      # URL interna do Actual Budget — ajuste se mudar porta ou nome do serviço
+      - ACTUAL_SERVER_URL=${ACTUAL_INTERNAL_URL:-http://app:5006}
+      # Senha do servidor Actual (mesma usada no app)
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
+      # Opcional: senha de criptografia se diferente da senha do servidor
+      - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
+      - TZ=America/Sao_Paulo
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
 # ============================================================================
 # VOLUMES
 # ============================================================================
 volumes:
   actual_data:
     driver: local
-  # actual_mcp_data:
-  #   driver: local
 
 # ============================================================================
 # NETWORKS
