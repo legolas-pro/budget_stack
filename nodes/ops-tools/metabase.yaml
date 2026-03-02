@@ -157,7 +157,7 @@ services:
         max_attempts: 5
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3333/mcp/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3333/health"]
       interval: 30s
       timeout: 10s
       retries: 5
