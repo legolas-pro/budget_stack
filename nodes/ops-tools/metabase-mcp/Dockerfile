@@ -13,4 +13,5 @@ EXPOSE 3333
 
 ENTRYPOINT ["supergateway", "--stdio", "node /app/dist/index.js", \
             "--port", "3333", "--host", "0.0.0.0", \
+            "--outputTransport", "streamable-http", \
             "--health-endpoint", "/health"]
