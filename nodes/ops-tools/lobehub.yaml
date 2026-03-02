@@ -251,8 +251,15 @@ services:
       - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
       - JWKS_KEY=${JWKS_KEY:-}
+      - ENABLE_OIDC=${ENABLE_OIDC:-1}
       - QSTASH_TOKEN=${QSTASH_TOKEN:-}
       - QSTASH_URL=${QSTASH_URL:-}
+
+      ## ===== LANGFUSE =====
+      - ENABLE_LANGFUSE=${ENABLE_LANGFUSE:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-}
 
       ## ===== BANCO =====
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresql:5432/${LOBE_DB_NAME:-lobechat}
