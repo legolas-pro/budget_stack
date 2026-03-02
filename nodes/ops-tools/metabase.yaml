@@ -135,8 +135,7 @@ services:
       - METABASE_USERNAME=${METABASE_USERNAME:-}
       - METABASE_PASSWORD=${METABASE_PASSWORD:-}
       - METABASE_API_KEY=${METABASE_API_KEY:-}
-      - MCP_MODE=http
-      - USE_FIXED_HTTP=true
+      - TRANSPORT=streamable-http
       - HOST=0.0.0.0
       - PORT=3333
       - LOG_LEVEL=${MCP_LOG_LEVEL:-info}
@@ -164,7 +163,7 @@ services:
         max_attempts: 5
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3333/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3333/mcp/"]
       interval: 30s
       timeout: 10s
       retries: 5
