@@ -21,7 +21,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/dist ./dist
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 RUN npm install -g supergateway
 
 EXPOSE 3002
