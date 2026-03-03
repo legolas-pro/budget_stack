@@ -11,9 +11,10 @@ version: "3.7"
 #   - Firefly III: Gerenciador de finanças pessoais (PHP/Laravel)
 #   - MariaDB: Banco de dados
 #   - Cron: Tarefas agendadas
+#   - MCP: Integração Model Context Protocol (LamPyrid)
 #
 # DEPLOY:
-#   docker stack deploy -c firefly.yaml firefly
+#   docker stack deploy -c firefly.yaml firefly --env-file firefly.env
 #
 # ============================================================================
 
@@ -24,7 +25,7 @@ x-images:
   mariadb: &mariadb_image mariadb:11.4
   firefly: &firefly_image fireflyiii/core:version-6
   alpine: &alpine_image alpine:3.19
-  lampyrid: &lampyrid_image ghcr.io/radcod3/lampyrid:latest
+  lampyrid: &lampyrid_image ${FIREFLY_MCP_IMAGE:-ghcr.io/radcod3/lampyrid:latest}
 
 services:
   # ==========================================================================
@@ -36,7 +37,7 @@ services:
       - firefly_internal
 
     environment:
-      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${FIREFLY_MARIADB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${FIREFLY_DB_NAME:-firefly}
       - MYSQL_USER=${FIREFLY_DB_USER:-firefly}
       - MYSQL_PASSWORD=${FIREFLY_DB_PASSWORD}
@@ -209,15 +210,15 @@ services:
       - firefly_internal
 
     ports:
-      - "${LAMPYRID_MCP_PORT:-3002}:3000"
+      - "${FIREFLY_MCP_PORT:-3002}:3000"
 
     environment:
-      - FIREFLY_BASE_URL=http://app:8080
+      - FIREFLY_BASE_URL=${FIREFLY_MCP_SERVER_URL:-http://app:8080}
       - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
       - MCP_TRANSPORT=sse
       - MCP_HOST=0.0.0.0
       - MCP_PORT=3000
-      - LOGGING_LEVEL=${LAMPYRID_LOG_LEVEL:-INFO}
+      - LOGGING_LEVEL=${FIREFLY_MCP_LOG_LEVEL:-INFO}
       - TZ=America/Sao_Paulo
 
     depends_on:
