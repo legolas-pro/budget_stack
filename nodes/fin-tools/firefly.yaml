@@ -11,7 +11,7 @@ version: "3.7"
 #   - Firefly III: Gerenciador de finanças pessoais (PHP/Laravel)
 #   - MariaDB: Banco de dados
 #   - Cron: Tarefas agendadas
-#   - MCP: Integração Model Context Protocol (LamPyrid)
+#   - MCP: Integração Model Context Protocol (LamPyrid, streamable HTTP)
 #
 # DEPLOY:
 #   docker stack deploy -c firefly.yaml firefly --env-file firefly.env
@@ -215,11 +215,22 @@ services:
     environment:
       - FIREFLY_BASE_URL=${FIREFLY_MCP_SERVER_URL:-http://app:8080}
       - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
-      - MCP_TRANSPORT=sse
+      - MCP_TRANSPORT=${FIREFLY_MCP_TRANSPORT:-http}
       - MCP_HOST=0.0.0.0
       - MCP_PORT=3000
       - LOGGING_LEVEL=${FIREFLY_MCP_LOG_LEVEL:-INFO}
+      # OAuth opcional para acesso remoto seguro via Claude Connector
+      - GOOGLE_CLIENT_ID=${FIREFLY_MCP_GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${FIREFLY_MCP_GOOGLE_CLIENT_SECRET:-}
+      - SERVER_BASE_URL=${FIREFLY_MCP_PUBLIC_URL:-}
+      # Persistência opcional de sessões/tokens OAuth entre reinícios
+      - JWT_SIGNING_KEY=${FIREFLY_MCP_JWT_SIGNING_KEY:-}
+      - OAUTH_STORAGE_ENCRYPTION_KEY=${FIREFLY_MCP_OAUTH_STORAGE_ENCRYPTION_KEY:-}
+      - OAUTH_STORAGE_PATH=/app/data/oauth
       - TZ=America/Sao_Paulo
+
+    volumes:
+      - firefly_mcp_oauth_data:/app/data/oauth
 
     depends_on:
       - app
@@ -247,6 +258,8 @@ volumes:
   firefly_mariadb_data:
     driver: local
   firefly_upload:
+    driver: local
+  firefly_mcp_oauth_data:
     driver: local
 
 # ============================================================================
