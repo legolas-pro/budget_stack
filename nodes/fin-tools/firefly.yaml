@@ -213,7 +213,7 @@ services:
       - "${FIREFLY_MCP_PORT:-3002}:3000"
 
     environment:
-      - FIREFLY_BASE_URL=${FIREFLY_MCP_SERVER_URL:-http://app:8080}
+      - FIREFLY_BASE_URL=http://app:${FIREFLY_PORT:-8080}
       - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
       - MCP_TRANSPORT=${FIREFLY_MCP_TRANSPORT:-http}
       - MCP_HOST=0.0.0.0
