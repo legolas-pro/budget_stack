@@ -25,7 +25,7 @@ x-images:
   mariadb: &mariadb_image mariadb:11.4
   firefly: &firefly_image fireflyiii/core:version-6
   alpine: &alpine_image alpine:3.19
-  lampyrid: &lampyrid_image ${FIREFLY_MCP_IMAGE:-ghcr.io/radcod3/lampyrid:latest}
+  lampyrid: &lampyrid_image ${FIREFLY_MCP_IMAGE:-firefly-mcp:local}
 
 services:
   # ==========================================================================
@@ -215,9 +215,14 @@ services:
     environment:
       - FIREFLY_BASE_URL=http://app:${FIREFLY_PORT:-8080}
       - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
-      - MCP_TRANSPORT=${FIREFLY_MCP_TRANSPORT:-http}
+      # Supergateway -> LamPyrid (stdio) -> HTTP streamable
+      - MCP_TRANSPORT=stdio
       - MCP_HOST=0.0.0.0
       - MCP_PORT=3000
+      - FIREFLY_MCP_OUTPUT_TRANSPORT=${FIREFLY_MCP_OUTPUT_TRANSPORT:-streamableHttp}
+      - FIREFLY_MCP_HTTP_PATH=${FIREFLY_MCP_HTTP_PATH:-/mcp}
+      - FIREFLY_MCP_HEALTH_ENDPOINT=${FIREFLY_MCP_HEALTH_ENDPOINT:-/health}
+      - FIREFLY_MCP_STDIO_CMD=${FIREFLY_MCP_STDIO_CMD:-lampyrid}
       - LOGGING_LEVEL=${FIREFLY_MCP_LOG_LEVEL:-INFO}
       # OAuth opcional para acesso remoto seguro via Claude Connector
       - GOOGLE_CLIENT_ID=${FIREFLY_MCP_GOOGLE_CLIENT_ID:-}
@@ -250,6 +255,13 @@ services:
           memory: 128M
       restart_policy:
         condition: any
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000${FIREFLY_MCP_HEALTH_ENDPOINT:-/health}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
 
 # ============================================================================
 # VOLUMES
