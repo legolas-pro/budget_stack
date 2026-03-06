@@ -1,0 +1,20 @@
+version: "3.7"
+
+# ============================================================================
+# OVERRIDE OPCIONAL: Mount do SQLite espelho do Actual no Metabase
+# Uso junto com metabase.yaml:
+#   docker stack deploy \
+#     -c metabase.yaml \
+#     -c metabase.actual-sqlite.yaml \
+#     metabase --env-file metabase.env
+# ============================================================================
+
+services:
+  metabase:
+    volumes:
+      - actual_bi_data:${METABASE_ACTUAL_BI_MOUNT_PATH:-/bi}:ro
+
+volumes:
+  actual_bi_data:
+    external: true
+    name: ${ACTUAL_BI_VOLUME_NAME:-actual_bi_data}
