@@ -218,7 +218,7 @@ services:
 
     environment:
       # Origem: API do proprio serviço Actual nesta stack
-      - ACTUAL_HTTP_API_BASE_URL=${ACTUAL_HTTP_API_BASE_URL:-http://api:5007/v1}
+      - ACTUAL_HTTP_API_BASE_URL=http://api:5007/v1
       - ACTUAL_HTTP_API_KEY=${ACTUAL_BI_HTTP_API_KEY}
       - ACTUAL_HTTP_TIMEOUT_SECONDS=${ACTUAL_HTTP_TIMEOUT_SECONDS:-30}
       - ACTUAL_HTTP_VERIFY_SSL=${ACTUAL_HTTP_VERIFY_SSL:-true}
