@@ -6,6 +6,7 @@ Worker Python para sincronizar dados do `actual-http-api` para PostgreSQL com:
 2. Soft delete (`deleted_at`) para registros removidos da origem
 3. Estado de ciclo em `actual_sync_state`
 4. Healthcheck por arquivo em `/tmp/actual_bi_sync_last_success`
+5. Atualizacao de linha somente quando o `source_hash` muda (ou para reativar registro previamente deletado)
 
 ## Fluxo
 

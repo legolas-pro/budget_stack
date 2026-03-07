@@ -129,8 +129,7 @@ ON CONFLICT (budget_id) DO UPDATE SET
   last_seen_at = EXCLUDED.last_seen_at,
   deleted_at = NULL
 WHERE actual_budgets.source_hash IS DISTINCT FROM EXCLUDED.source_hash
-   OR actual_budgets.deleted_at IS NOT NULL
-   OR actual_budgets.last_seen_at < EXCLUDED.last_seen_at;
+   OR actual_budgets.deleted_at IS NOT NULL;
 """
 
 UPSERT_ENTITY_SQL = """
@@ -171,8 +170,7 @@ ON CONFLICT (entity_type, budget_id, entity_id) DO UPDATE SET
   last_seen_at = EXCLUDED.last_seen_at,
   deleted_at = NULL
 WHERE actual_entities.source_hash IS DISTINCT FROM EXCLUDED.source_hash
-   OR actual_entities.deleted_at IS NOT NULL
-   OR actual_entities.last_seen_at < EXCLUDED.last_seen_at;
+   OR actual_entities.deleted_at IS NOT NULL;
 """
 
 
