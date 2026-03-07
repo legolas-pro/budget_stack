@@ -606,12 +606,7 @@ def request_json(
 
 
 def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[str, Any]]:
-    payload = request_json(session, settings, "/budgets")
-    records = extract_records(payload, preferred_keys=("budgets",))
-
-    target_sync_id = settings.budget_sync_id
-    filtered: list[dict[str, Any]] = []
-    for budget in records:
+    def budget_identity_candidates(budget: dict[str, Any]) -> set[str]:
         candidates = {
             extract_budget_id(budget),
             choose_first_string(budget, ("id", "budgetId", "budget_id")),
@@ -619,16 +614,60 @@ def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[st
             choose_first_string(budget, ("groupId", "group_id")),
             choose_first_string(budget, ("cloudFileId", "cloud_file_id")),
         }
-        normalized = {candidate for candidate in candidates if candidate}
-        if target_sync_id in normalized:
-            filtered.append(budget)
-    records = filtered
+        return {candidate for candidate in candidates if candidate}
 
-    if not records and settings.require_non_empty_budgets:
-        raise RuntimeError(
-            "Nenhum budget correspondente a ACTUAL_BUDGET_SYNC_ID foi retornado por /budgets"
+    def filter_by_sync_id(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        target_sync_id = settings.budget_sync_id
+        filtered: list[dict[str, Any]] = []
+        for budget in records:
+            if target_sync_id in budget_identity_candidates(budget):
+                filtered.append(budget)
+        return filtered
+
+    payload = request_json(session, settings, "/budgets")
+    records = extract_records(payload, preferred_keys=("budgets",))
+    matched = filter_by_sync_id(records)
+    if matched:
+        return matched
+
+    # Fallback: alguns ambientes não listam /budgets de forma consistente,
+    # mas aceitam consultas no budgetSyncId diretamente.
+    safe_budget_sync_id = urllib.parse.quote(settings.budget_sync_id, safe="")
+    scoped_path = f"/budgets/{safe_budget_sync_id}/budgets"
+    try:
+        scoped_payload = request_json(session, settings, scoped_path)
+        scoped_records = extract_records(scoped_payload, preferred_keys=("budgets",))
+        scoped_matched = filter_by_sync_id(scoped_records)
+        if scoped_matched:
+            LOGGER.info(
+                "Budget resolvido via endpoint escopado %s (count=%s)",
+                scoped_path,
+                len(scoped_matched),
+            )
+            return scoped_matched
+
+        LOGGER.warning(
+            "Nenhum budget correspondente em /budgets e %s; usando ACTUAL_BUDGET_SYNC_ID diretamente",
+            scoped_path,
         )
-    return records
+        return [
+            {
+                "syncId": settings.budget_sync_id,
+                "groupId": settings.budget_sync_id,
+                "name": "Budget",
+            }
+        ]
+    except Exception as scoped_exc:  # noqa: BLE001
+        available_ids: list[str] = []
+        for budget in records:
+            available_ids.extend(sorted(budget_identity_candidates(budget)))
+        if settings.require_non_empty_budgets:
+            raise RuntimeError(
+                "Nenhum budget correspondente a ACTUAL_BUDGET_SYNC_ID foi retornado por /budgets "
+                f"e fallback {scoped_path} falhou ({scoped_exc}). "
+                f"IDs disponiveis em /budgets: {sorted(set(available_ids)) or '[]'}"
+            ) from scoped_exc
+        return []
 
 
 def fetch_endpoint_records(
