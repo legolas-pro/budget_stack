@@ -232,7 +232,7 @@ services:
       - ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR=${ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR:-true}
 
       # Destino: PostgreSQL
-      - DB_HOST=actual_bi_postgres
+      - DB_HOST=${ACTUAL_BI_DB_HOST:-actual_bi_postgres}
       - DB_PORT=5432
       - DB_NAME=${ACTUAL_BI_DB_NAME:-actual_bi}
       - DB_USER=${ACTUAL_BI_DB_USER:-actual_bi}
