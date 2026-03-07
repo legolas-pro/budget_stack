@@ -50,7 +50,9 @@ services:
       - TZ=America/Sao_Paulo
 
     volumes:
-      - actual_data:/data
+      - type: volume
+        source: actual_data
+        target: /data
 
     deploy:
       mode: replicated
@@ -185,8 +187,13 @@ services:
       - TZ=America/Sao_Paulo
 
     volumes:
-      - actual_data:/actual-data:ro
-      - actual_bi_data:/bi-data
+      - type: volume
+        source: actual_data
+        target: /actual-data
+        read_only: true
+      - type: volume
+        source: actual_bi_data
+        target: /bi-data
 
     depends_on:
       - app
@@ -221,7 +228,7 @@ services:
 # ============================================================================
 volumes:
   actual_data:
-    driver: local
+    name: ${ACTUAL_DATA_VOLUME_NAME:-actual_actual_data}
   actual_bi_data:
     name: ${ACTUAL_BI_VOLUME_NAME:-actual_bi_data}
 
