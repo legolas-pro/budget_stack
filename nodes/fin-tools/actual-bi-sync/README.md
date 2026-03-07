@@ -20,9 +20,9 @@ Worker Python para sincronizar dados do `actual-http-api` para PostgreSQL com:
 
 - `ACTUAL_HTTP_API_BASE_URL` (ex.: `http://172.17.0.1:5007/v1`)
 - `ACTUAL_HTTP_API_KEY`
+- `ACTUAL_BUDGET_SYNC_ID` (UUID do budget unico a sincronizar)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `ACTUAL_BI_ENDPOINTS` (CSV)
-- `ACTUAL_BI_BUDGET_IDS` (CSV opcional para filtrar budgets)
 - `SYNC_INTERVAL_SECONDS`
 - `RUN_ONCE`
 - `READONLY_DB_USER` / `READONLY_DB_PASSWORD` (opcional)

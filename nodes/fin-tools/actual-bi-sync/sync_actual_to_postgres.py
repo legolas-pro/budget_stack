@@ -190,7 +190,7 @@ class Settings:
     sync_interval_seconds: int
     run_once: bool
     endpoints: tuple[str, ...]
-    budget_ids: tuple[str, ...]
+    budget_sync_id: str
     require_non_empty_budgets: bool
     fail_on_endpoint_error: bool
     health_success_file: pathlib.Path
@@ -256,6 +256,9 @@ def load_settings() -> Settings:
     readonly_password = (os.getenv("READONLY_DB_PASSWORD") or "").strip() or None
     if readonly_user and not readonly_password:
         raise RuntimeError("READONLY_DB_PASSWORD is required when READONLY_DB_USER is set")
+    budget_sync_id = (os.getenv("ACTUAL_BUDGET_SYNC_ID") or "").strip()
+    if not budget_sync_id:
+        raise RuntimeError("ACTUAL_BUDGET_SYNC_ID is required for the BI sync worker")
 
     return Settings(
         actual_http_api_base_url=api_base,
@@ -286,7 +289,7 @@ def load_settings() -> Settings:
         endpoints=parse_csv(
             os.getenv("ACTUAL_BI_ENDPOINTS"), default=DEFAULT_ENTITY_ENDPOINTS
         ),
-        budget_ids=parse_csv(os.getenv("ACTUAL_BI_BUDGET_IDS"), default=()),
+        budget_sync_id=budget_sync_id,
         require_non_empty_budgets=parse_bool(
             os.getenv("ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS"), default=True
         ),
@@ -602,17 +605,23 @@ def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[st
     payload = request_json(session, settings, "/budgets")
     records = extract_records(payload, preferred_keys=("budgets",))
 
-    if settings.budget_ids:
-        allowed = set(settings.budget_ids)
-        filtered: list[dict[str, Any]] = []
-        for budget in records:
-            budget_id = extract_budget_id(budget)
-            if budget_id and budget_id in allowed:
-                filtered.append(budget)
-        records = filtered
+    target_sync_id = settings.budget_sync_id
+    filtered: list[dict[str, Any]] = []
+    for budget in records:
+        candidates = {
+            extract_budget_id(budget),
+            choose_first_string(budget, ("id", "budgetId", "budget_id")),
+            choose_first_string(budget, ("syncId", "sync_id")),
+        }
+        normalized = {candidate for candidate in candidates if candidate}
+        if target_sync_id in normalized:
+            filtered.append(budget)
+    records = filtered
 
     if not records and settings.require_non_empty_budgets:
-        raise RuntimeError("Nenhum budget retornado pelo endpoint /budgets")
+        raise RuntimeError(
+            "Nenhum budget correspondente a ACTUAL_BUDGET_SYNC_ID foi retornado por /budgets"
+        )
     return records
 
 
@@ -977,13 +986,14 @@ def main() -> int:
     settings = load_settings()
 
     LOGGER.info(
-        "Iniciando worker (api=%s, db=%s:%s/%s, interval=%ss, once=%s, endpoints=%s)",
+        "Iniciando worker (api=%s, db=%s:%s/%s, interval=%ss, once=%s, sync_id=%s, endpoints=%s)",
         settings.actual_http_api_base_url,
         settings.db_host,
         settings.db_port,
         settings.db_name,
         settings.sync_interval_seconds,
         settings.run_once,
+        settings.budget_sync_id,
         ",".join(settings.endpoints),
     )
 
