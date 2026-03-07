@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS actual_sync_state (
 
 CREATE TABLE IF NOT EXISTS actual_budgets (
   budget_id TEXT PRIMARY KEY,
-  sync_id TEXT,
   name TEXT,
   source_hash TEXT NOT NULL,
   source_updated_at TIMESTAMPTZ,
@@ -101,7 +100,6 @@ WHERE entity_type = 'accounts'
 UPSERT_BUDGET_SQL = """
 INSERT INTO actual_budgets (
   budget_id,
-  sync_id,
   name,
   source_hash,
   source_updated_at,
@@ -111,7 +109,6 @@ INSERT INTO actual_budgets (
   deleted_at
 ) VALUES (
   %(budget_id)s,
-  %(sync_id)s,
   %(name)s,
   %(source_hash)s,
   %(source_updated_at)s,
@@ -121,7 +118,6 @@ INSERT INTO actual_budgets (
   NULL
 )
 ON CONFLICT (budget_id) DO UPDATE SET
-  sync_id = EXCLUDED.sync_id,
   name = EXCLUDED.name,
   source_hash = EXCLUDED.source_hash,
   source_updated_at = EXCLUDED.source_updated_at,
@@ -648,7 +644,6 @@ def upsert_budget(
     )
     params = {
         "budget_id": budget_id,
-        "sync_id": choose_first_string(budget, ("syncId", "sync_id", "id")),
         "name": choose_first_string(budget, ("name",)),
         "source_hash": source_hash,
         "source_updated_at": source_updated_at,
