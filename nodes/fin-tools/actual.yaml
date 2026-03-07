@@ -2,7 +2,7 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
-# VERSÃO: 1.3
+# VERSÃO: 1.4
 # VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
@@ -227,9 +227,13 @@ services:
 # VOLUMES
 # ============================================================================
 volumes:
+  # Volume do banco principal do Actual (deve existir no host Swarm)
   actual_data:
+    external: true
     name: ${ACTUAL_DATA_VOLUME_NAME:-actual_actual_data}
+  # Volume do SQLite espelho para BI (deve existir no host Swarm)
   actual_bi_data:
+    external: true
     name: ${ACTUAL_BI_VOLUME_NAME:-actual_bi_data}
 
 # ============================================================================
