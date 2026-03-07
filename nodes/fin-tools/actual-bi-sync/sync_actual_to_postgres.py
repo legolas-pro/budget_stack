@@ -508,11 +508,15 @@ def extract_budget_id(budget: dict[str, Any]) -> str | None:
     candidate = choose_first_string(
         budget,
         (
+            "syncId",
+            "sync_id",
+            "groupId",
+            "group_id",
             "id",
             "budgetId",
             "budget_id",
-            "syncId",
-            "sync_id",
+            "cloudFileId",
+            "cloud_file_id",
         ),
     )
     return candidate
@@ -612,6 +616,8 @@ def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[st
             extract_budget_id(budget),
             choose_first_string(budget, ("id", "budgetId", "budget_id")),
             choose_first_string(budget, ("syncId", "sync_id")),
+            choose_first_string(budget, ("groupId", "group_id")),
+            choose_first_string(budget, ("cloudFileId", "cloud_file_id")),
         }
         normalized = {candidate for candidate in candidates if candidate}
         if target_sync_id in normalized:
