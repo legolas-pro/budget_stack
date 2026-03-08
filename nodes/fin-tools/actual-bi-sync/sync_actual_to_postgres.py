@@ -676,10 +676,45 @@ def fetch_endpoint_records(
     budget_id: str,
     endpoint: str,
 ) -> list[dict[str, Any]]:
+    if endpoint == "transactions":
+        return fetch_transactions_records(session, settings, budget_id=budget_id)
+
     safe_budget_id = urllib.parse.quote(budget_id, safe="")
     path = f"/budgets/{safe_budget_id}/{endpoint}"
     payload = request_json(session, settings, path)
     return extract_records(payload, preferred_keys=(endpoint,))
+
+
+def fetch_transactions_records(
+    session: requests.Session,
+    settings: Settings,
+    *,
+    budget_id: str,
+) -> list[dict[str, Any]]:
+    accounts = fetch_endpoint_records(session, settings, budget_id=budget_id, endpoint="accounts")
+    if not accounts:
+        return []
+
+    safe_budget_id = urllib.parse.quote(budget_id, safe="")
+    records: list[dict[str, Any]] = []
+    for account in accounts:
+        account_id = choose_first_string(account, ("id", "accountId", "account_id"))
+        if not account_id:
+            continue
+
+        safe_account_id = urllib.parse.quote(account_id, safe="")
+        path = f"/budgets/{safe_budget_id}/accounts/{safe_account_id}/transactions"
+        payload = request_json(session, settings, path)
+        account_records = extract_records(payload, preferred_keys=("transactions",))
+        records.extend(account_records)
+
+    LOGGER.info(
+        "Transacoes coletadas por conta: budget=%s accounts=%s records=%s",
+        budget_id,
+        len(accounts),
+        len(records),
+    )
+    return records
 
 
 def upsert_budget(
