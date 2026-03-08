@@ -628,6 +628,24 @@ def request_json(
 
 
 def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[str, Any]]:
+    def dedupe_by_budget_id(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        deduped: dict[str, dict[str, Any]] = {}
+        for budget in records:
+            budget_id = extract_budget_id(budget)
+            if not budget_id:
+                continue
+            if budget_id in deduped:
+                continue
+            deduped[budget_id] = budget
+        result = list(deduped.values())
+        if len(result) < len(records):
+            LOGGER.info(
+                "Budgets deduplicados por budget_id: %s -> %s",
+                len(records),
+                len(result),
+            )
+        return result
+
     def budget_identity_candidates(budget: dict[str, Any]) -> set[str]:
         candidates = {
             extract_budget_id(budget),
@@ -650,7 +668,7 @@ def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[st
     records = extract_records(payload, preferred_keys=("budgets",))
     matched = filter_by_sync_id(records)
     if matched:
-        return matched
+        return dedupe_by_budget_id(matched)
 
     # Fallback: alguns ambientes não listam /budgets de forma consistente,
     # mas aceitam consultas no budgetSyncId diretamente.
@@ -666,7 +684,7 @@ def fetch_budgets(session: requests.Session, settings: Settings) -> list[dict[st
                 scoped_path,
                 len(scoped_matched),
             )
-            return scoped_matched
+            return dedupe_by_budget_id(scoped_matched)
 
         LOGGER.warning(
             "Nenhum budget correspondente em /budgets e %s; usando ACTUAL_BUDGET_SYNC_ID diretamente",
