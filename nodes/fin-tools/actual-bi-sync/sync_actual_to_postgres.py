@@ -191,6 +191,8 @@ class Settings:
     run_once: bool
     endpoints: tuple[str, ...]
     budget_sync_id: str
+    transactions_since_date: dt.date
+    transactions_until_date: dt.date | None
     require_non_empty_budgets: bool
     fail_on_endpoint_error: bool
     health_success_file: pathlib.Path
@@ -259,6 +261,24 @@ def load_settings() -> Settings:
     budget_sync_id = (os.getenv("ACTUAL_BUDGET_SYNC_ID") or "").strip()
     if not budget_sync_id:
         raise RuntimeError("ACTUAL_BUDGET_SYNC_ID is required for the BI sync worker")
+    transactions_since_date_raw = (
+        os.getenv("ACTUAL_BI_TRANSACTIONS_SINCE_DATE") or "2000-01-01"
+    ).strip()
+    transactions_since_date = parse_date(transactions_since_date_raw)
+    if transactions_since_date is None:
+        raise RuntimeError(
+            "ACTUAL_BI_TRANSACTIONS_SINCE_DATE must be a valid date (YYYY-MM-DD)"
+        )
+    transactions_until_date_raw = (
+        os.getenv("ACTUAL_BI_TRANSACTIONS_UNTIL_DATE") or ""
+    ).strip()
+    transactions_until_date: dt.date | None = None
+    if transactions_until_date_raw:
+        transactions_until_date = parse_date(transactions_until_date_raw)
+        if transactions_until_date is None:
+            raise RuntimeError(
+                "ACTUAL_BI_TRANSACTIONS_UNTIL_DATE must be a valid date (YYYY-MM-DD)"
+            )
 
     return Settings(
         actual_http_api_base_url=api_base,
@@ -290,6 +310,8 @@ def load_settings() -> Settings:
             os.getenv("ACTUAL_BI_ENDPOINTS"), default=DEFAULT_ENTITY_ENDPOINTS
         ),
         budget_sync_id=budget_sync_id,
+        transactions_since_date=transactions_since_date,
+        transactions_until_date=transactions_until_date,
         require_non_empty_budgets=parse_bool(
             os.getenv("ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS"), default=True
         ),
@@ -704,7 +726,12 @@ def fetch_transactions_records(
 
         safe_account_id = urllib.parse.quote(account_id, safe="")
         path = f"/budgets/{safe_budget_id}/accounts/{safe_account_id}/transactions"
-        payload = request_json(session, settings, path)
+        params: dict[str, Any] = {
+            "since_date": settings.transactions_since_date.isoformat()
+        }
+        if settings.transactions_until_date is not None:
+            params["until_date"] = settings.transactions_until_date.isoformat()
+        payload = request_json(session, settings, path, params=params)
         account_records = extract_records(payload, preferred_keys=("transactions",))
         records.extend(account_records)
 
@@ -1066,7 +1093,7 @@ def main() -> int:
     settings = load_settings()
 
     LOGGER.info(
-        "Iniciando worker (api=%s, db=%s:%s/%s, interval=%ss, once=%s, sync_id=%s, endpoints=%s)",
+        "Iniciando worker (api=%s, db=%s:%s/%s, interval=%ss, once=%s, sync_id=%s, tx_since=%s, tx_until=%s, endpoints=%s)",
         settings.actual_http_api_base_url,
         settings.db_host,
         settings.db_port,
@@ -1074,6 +1101,12 @@ def main() -> int:
         settings.sync_interval_seconds,
         settings.run_once,
         settings.budget_sync_id,
+        settings.transactions_since_date.isoformat(),
+        (
+            settings.transactions_until_date.isoformat()
+            if settings.transactions_until_date is not None
+            else "none"
+        ),
         ",".join(settings.endpoints),
     )
 
