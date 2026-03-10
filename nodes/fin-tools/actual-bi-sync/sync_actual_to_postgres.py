@@ -27,6 +27,7 @@ DEFAULT_ENTITY_ENDPOINTS = (
     "payees",
     "categories",
     "categorygroups",
+    "schedules",
 )
 
 SCHEMA_SQL = """
@@ -111,6 +112,19 @@ SELECT
   raw
 FROM actual_entities
 WHERE entity_type = 'categorygroups'
+  AND deleted_at IS NULL;
+
+CREATE OR REPLACE VIEW actual_active_schedules AS
+SELECT
+  budget_id,
+  entity_id AS schedule_id,
+  name,
+  amount,
+  record_date AS next_date,
+  source_updated_at,
+  raw
+FROM actual_entities
+WHERE entity_type = 'schedules'
   AND deleted_at IS NULL;
 """
 
@@ -230,8 +244,47 @@ def normalize_endpoint_name(value: str) -> str:
     aliases = {
         "category-groups": "categorygroups",
         "category_groups": "categorygroups",
+        "schedule": "schedules",
     }
     return aliases.get(normalized, normalized)
+
+
+def extract_amount_value(record: dict[str, Any]) -> decimal.Decimal | None:
+    direct = choose_first_decimal(record, ("amount", "amountInCents", "value"))
+    if direct is not None:
+        return direct
+
+    amount = record.get("amount")
+    if isinstance(amount, dict):
+        for key in ("num1", "min", "value"):
+            parsed = parse_decimal(amount.get(key))
+            if parsed is not None:
+                return parsed
+    return None
+
+
+def extract_record_date_value(record: dict[str, Any]) -> dt.date | None:
+    direct = choose_first_date(
+        record,
+        (
+            "next_date",
+            "nextDate",
+            "date",
+            "startingBalanceDate",
+            "importedAt",
+            "createdAt",
+        ),
+    )
+    if direct is not None:
+        return direct
+
+    date_value = record.get("date")
+    if isinstance(date_value, dict):
+        for key in ("start", "startDate", "date"):
+            parsed = parse_date(date_value.get(key))
+            if parsed is not None:
+                return parsed
+    return None
 
 
 def parse_bool(value: str | None, *, default: bool) -> bool:
@@ -891,17 +944,14 @@ def upsert_entities(
                         "notes",
                     ),
                 ),
-                "amount": choose_first_decimal(
-                    record, ("amount", "amountInCents", "value")
-                ),
-                "record_date": choose_first_date(
-                    record,
-                    ("date", "startingBalanceDate", "importedAt", "createdAt"),
-                ),
+                "amount": extract_amount_value(record),
+                "record_date": extract_record_date_value(record),
                 "source_hash": compute_source_hash(record),
                 "source_updated_at": choose_first_timestamp(
                     record,
                     (
+                        "next_date",
+                        "nextDate",
                         "updatedAt",
                         "updated_at",
                         "lastModified",
