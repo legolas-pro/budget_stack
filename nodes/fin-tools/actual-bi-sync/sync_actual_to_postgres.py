@@ -365,8 +365,11 @@ def load_settings() -> Settings:
     normalized_endpoints = tuple(
         normalize_endpoint_name(item) for item in configured_endpoints
     )
-    # categorygroups é dimensão importante para BI e deve estar sempre presente.
-    endpoints = tuple(dict.fromkeys((*normalized_endpoints, "categorygroups")))
+    # categorygroups e schedules são dimensões importantes para BI e devem
+    # estar sempre presentes mesmo se ACTUAL_BI_ENDPOINTS vier legado.
+    endpoints = tuple(
+        dict.fromkeys((*normalized_endpoints, "categorygroups", "schedules"))
+    )
 
     return Settings(
         actual_http_api_base_url=api_base,
