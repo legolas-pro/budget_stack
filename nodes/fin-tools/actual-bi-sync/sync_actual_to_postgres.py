@@ -21,7 +21,13 @@ import requests
 
 LOGGER = logging.getLogger("actual-bi-sync")
 UTC = dt.timezone.utc
-DEFAULT_ENTITY_ENDPOINTS = ("accounts", "transactions", "payees", "categories")
+DEFAULT_ENTITY_ENDPOINTS = (
+    "accounts",
+    "transactions",
+    "payees",
+    "categories",
+    "categorygroups",
+)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS actual_sync_state (
@@ -94,6 +100,17 @@ SELECT
   raw
 FROM actual_entities
 WHERE entity_type = 'accounts'
+  AND deleted_at IS NULL;
+
+CREATE OR REPLACE VIEW actual_active_category_groups AS
+SELECT
+  budget_id,
+  entity_id AS category_group_id,
+  name,
+  source_updated_at,
+  raw
+FROM actual_entities
+WHERE entity_type = 'categorygroups'
   AND deleted_at IS NULL;
 """
 
@@ -208,6 +225,15 @@ class EndpointStats:
     skipped_records: int
 
 
+def normalize_endpoint_name(value: str) -> str:
+    normalized = value.strip().lower()
+    aliases = {
+        "category-groups": "categorygroups",
+        "category_groups": "categorygroups",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def parse_bool(value: str | None, *, default: bool) -> bool:
     if value is None:
         return default
@@ -280,6 +306,15 @@ def load_settings() -> Settings:
                 "ACTUAL_BI_TRANSACTIONS_UNTIL_DATE must be a valid date (YYYY-MM-DD)"
             )
 
+    configured_endpoints = parse_csv(
+        os.getenv("ACTUAL_BI_ENDPOINTS"), default=DEFAULT_ENTITY_ENDPOINTS
+    )
+    normalized_endpoints = tuple(
+        normalize_endpoint_name(item) for item in configured_endpoints
+    )
+    # categorygroups é dimensão importante para BI e deve estar sempre presente.
+    endpoints = tuple(dict.fromkeys((*normalized_endpoints, "categorygroups")))
+
     return Settings(
         actual_http_api_base_url=api_base,
         actual_http_api_key=api_key,
@@ -306,9 +341,7 @@ def load_settings() -> Settings:
         readonly_db_password=readonly_password,
         sync_interval_seconds=max(int(os.getenv("SYNC_INTERVAL_SECONDS", "300")), 15),
         run_once=parse_bool(os.getenv("RUN_ONCE"), default=False),
-        endpoints=parse_csv(
-            os.getenv("ACTUAL_BI_ENDPOINTS"), default=DEFAULT_ENTITY_ENDPOINTS
-        ),
+        endpoints=endpoints,
         budget_sync_id=budget_sync_id,
         transactions_since_date=transactions_since_date,
         transactions_until_date=transactions_until_date,
