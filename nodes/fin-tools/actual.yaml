@@ -10,7 +10,6 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
-#   - actual_mcp  → MCP via supergateway (streamableHttp)   host: ${ACTUAL_MCP_PORT:-3001}
 #   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
 #   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
 #
@@ -24,7 +23,6 @@ version: "3.7"
 # ============================================================================
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
-  actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-actual-mcp:local}
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
@@ -116,52 +114,6 @@ services:
 
     healthcheck:
       disable: true
-
-  # ==========================================================================
-  # ACTUAL MCP - Integração Model Context Protocol
-  # ==========================================================================
-  actual_mcp:
-    image: *actual_mcp_image
-    networks:
-      - actual_internal
-
-    ports:
-      - "${ACTUAL_MCP_PORT:-3001}:3001"
-
-    environment:
-      # URL interna do Actual Budget — ajuste se mudar porta ou nome do serviço
-      - ACTUAL_SERVER_URL=${ACTUAL_MCP_SERVER_URL:-http://app:5006}
-      # Senha do servidor Actual (mesma usada no app)
-      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
-      # Opcional: senha de criptografia se diferente da senha do servidor
-      - ACTUAL_BUDGET_ENCRYPTION_PASSWORD=${ACTUAL_BUDGET_ENCRYPTION_PASSWORD:-}
-      - TZ=America/Sao_Paulo
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 768M
-        reservations:
-          cpus: "0.05"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 45s
 
   # ==========================================================================
   # ACTUAL BI POSTGRES - Banco relacional para BI e conexao direta
