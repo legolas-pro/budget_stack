@@ -1,0 +1,137 @@
+1. Cloudflared — Apontar URL para Open WebUI                                                                                                                                            
+                                                                                                                                                                                          
+  Como seu tunnel é gerenciado pelo dashboard do Cloudflare Zero Trust, você configura as rotas lá (não localmente). Vá em:                                                               
+
+  Cloudflare Zero Trust Dashboard > Networks > Tunnels > selecione seu tunnel > Public Hostname                                                                                           
+                                                                                                                                                                                          
+  Adicione uma nova rota:                                                                                                                                                                 
+  ┌───────────┬──────────────────────────────────┐                                                                                                                                        
+  │   Campo   │              Valor               │                                                                                                                                        
+  ├───────────┼──────────────────────────────────┤
+  │ Subdomain │ chat (ou o que preferir)         │
+  ├───────────┼──────────────────────────────────┤
+  │ Domain    │ seu domínio (ex: seudominio.com) │
+  ├───────────┼──────────────────────────────────┤
+  │ Type      │ HTTP                             │
+  ├───────────┼──────────────────────────────────┤
+  │ URL       │ localhost:3000                   │
+  └───────────┴──────────────────────────────────┘
+  Configurações adicionais recomendadas (em Additional application settings):
+  - TLS > No TLS Verify: ON (não precisa, é HTTP local)
+  - HTTP Settings > HTTP Host Header: deixe em branco
+
+  Depois de salvar, chat.seudominio.com vai apontar para o Open WebUI.
+
+  ---
+  2. n8n — Conectar ao Ollama
+
+  No seu n8n, existem duas formas:
+
+  Opção A: Nó nativo "Ollama" (Recomendado)
+
+  No n8n, ao criar um workflow com nós de IA, use a credencial Ollama:
+  ┌──────────┬─────────────────────────────┐
+  │  Campo   │            Valor            │
+  ├──────────┼─────────────────────────────┤
+  │ Base URL │ http://192.168.68.115:11434 │
+  ├──────────┼─────────────────────────────┤
+  │ Model    │ llama3.1:8b-instruct-q4_K_M │
+  └──────────┴─────────────────────────────┘
+  Use o IP da máquina (192.168.68.115) porque o n8n e o Ollama estão em redes overlay diferentes no Swarm, e a porta está publicada em mode: host.
+
+  Opção B: Nó "HTTP Request" (para controle total)
+  ┌─────────────┬──────────────────────────────────────────┐
+  │    Campo    │                  Valor                   │
+  ├─────────────┼──────────────────────────────────────────┤
+  │ Method      │ POST                                     │
+  ├─────────────┼──────────────────────────────────────────┤
+  │ URL         │ http://192.168.68.115:11434/api/generate │
+  ├─────────────┼──────────────────────────────────────────┤
+  │ Body (JSON) │ ver abaixo                               │
+  └─────────────┴──────────────────────────────────────────┘
+  {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "prompt": "{{ $json.texto }}",
+    "stream": false
+  }
+
+  Para chat com histórico, use /api/chat:
+
+  {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "messages": [
+      {"role": "system", "content": "Você é um assistente útil."},
+      {"role": "user", "content": "{{ $json.mensagem }}"}
+    ],
+    "stream": false
+  }
+
+  ---
+  Resumo rápido
+  ┌────────────────────┬────────────────────────────────────────────────────────────┬─────────────────────────────┐
+  │       O que        │                      Onde configurar                       │          Endpoint           │
+  ├────────────────────┼────────────────────────────────────────────────────────────┼─────────────────────────────┤
+  │ Open WebUI externo │ Cloudflare Zero Trust Dashboard > Tunnel > Public Hostname │ HTTP → localhost:3000       │
+  ├────────────────────┼────────────────────────────────────────────────────────────┼─────────────────────────────┤
+  │ n8n → Ollama       │ Credencial Ollama no n8n                                   │ http://192.168.68.115:11434 │
+  ├────────────────────┼────────────────────────────────────────────────────────────┼─────────────────────────────┤
+  │ Modelo             │ Em qualquer nó                                             │ llama3.1:8b-instruct-q4_K_M │
+  └────────────────────┴────────────────────────────────────────────────────────────┴─────────────────────────────┘
+
+✻ Worked for 41s
+
+❯ temos um problema, porta 3000 é muito disputada, vai dar merda, acho que ja tem servicos usando inclusive, se nao tem ,,teve e eu tive que mudar. O quao complexo é para                
+  alterarmos?                                                                                                                                                                          
+                                                                                                                                                                                          
+● Simples — é mudar uma linha no compose e redesplorar. Vou verificar o que já está ocupado.                                                                                              
+                                                                                                                                                                                          
+● Bash(ss -tlnp | grep -E "LISTEN" | awk '{print $4}' | grep -oP ':\K[0-9]+$' | sort -n | uniq)                                                                                           
+  ⎿  22      
+     631                                                                                                                                                                                  
+     2377                                                                                                                                                                                 
+     … +15 lines (ctrl+o to expand)                                                                                                                                                       
+                                                                                                                                                                                          
+● Portas 3000, 3001, 3002 e 3030 já estão ocupadas. Sugiro a 8888 — limpa e fácil de lembrar.
+                                                                                                                                                                                          
+● Update(stacks/ollama/docker-compose.yml)                                                                                                                                                
+  ⎿  Added 1 line, removed 1 line                                                                                                                                                         
+      27      image: ghcr.io/open-webui/open-webui:main                                                                                                                                   
+      28      ports:                                                                                                                                                                      
+      29        - target: 8080                                                                                                                                                            
+      30 -        published: 3000                                                                                                                                                         
+      30 +        published: 8888                                                                                                                                                         
+      31          protocol: tcp                                                                                                                                                           
+      32          mode: host                                                                                                                                                              
+      33      environment:                                                                                                                                                                
+                                                                                                                                                                                          
+● Bash(docker stack deploy -c /home/familia/stacks/ollama/docker-compose.yml ollama 2>&1)                                                                                                 
+  ⎿  Since --detach=false was not specified, tasks will be created in the background.                                                                                                     
+     In a future release, --detach=false will become the default.                                                                                                                         
+     Updating service ollama_ollama (id: 1wq2sjbfw221xyztelwq9kko8)                                                                                                                       
+     Updating service ollama_open-webui (id: m50efwmif94hi2683p74htfuu)                                                                                                                   
+  ⎿  (timeout 30s)                                                                                                                                                                        
+                                                                                                                                                                                          
+● Bash(sleep 30 && curl -s --max-time 10 -o /dev/null -w "HTTP %{http_code}" http://localhost:8888/ 2>&1)                                                                                 
+  ⎿  HTTP 200                                                                                                                                                                             
+  ⎿  (timeout 45s)                                                                                                                                                                        
+                                                                                                                                                                                          
+● Pronto. Uma linha alterada, um redeploy. Open WebUI agora em http://localhost:8888.                                                                                                     
+                                                                                                                                                                                          
+  No Cloudflare Tunnel, aponte para localhost:8888 ao invés de 3000.                                                                                                                      
+                                                                                                                                                                                          
+✻ Brewed for 56s                                                                                                                                                                          
+                                                                                                                                                                                          
+❯ e esta saudavel? posso testar?                                                                                                                                                          
+                                                                                                                                                                                          
+● Bash(docker service ls --format "table {{.Name}}\t{{.Replicas}}\t{{.Ports}}" | grep ollama)                                                                                             
+  ⎿  ollama_ollama           1/1                                                                                                                                                          
+     ollama_open-webui       1/1                                                                                                                                                          
+                                                                                                                                                                                          
+● Bash(curl -s --max-time 5 http://localhost:11434/ && echo "" && curl -s --max-time 5 -o /dev/null -w "Open WebUI: HTTP %{http_code}" http://localhost:8888/)                            
+  ⎿  Ollama is running
+     Open WebUI: HTTP 200                                                                                                                                                                 
+                                                                                                                                                                                          
+● Tudo saudável — pode testar:                                                                                                                                                            
+                                                                                                                                                                                          
+  - Open WebUI: http://localhost:8888 (vai pedir para criar uma conta admin no primeiro acesso)                                                                                           
+  - Ollama API: http://localhost:11434       

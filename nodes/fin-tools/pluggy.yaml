@@ -1,0 +1,64 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Pluggy MCP - Open Finance / Dados Bancários
+# VERSÃO: 1.0
+# VPS: fin-tools
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+#
+# SERVIÇOS ATIVOS:
+#   - pluggy_mcp  → MCP via supergateway (streamableHttp)   host: ${PLUGGY_MCP_PORT:-3002}
+#
+# DEPLOY:
+#   docker stack deploy -c pluggy.yaml pluggy --env-file pluggy.env
+#
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  pluggy_mcp: &pluggy_mcp_image ${PLUGGY_MCP_IMAGE:-pluggy-mcp:local}
+
+services:
+  # ==========================================================================
+  # PLUGGY MCP - Integração Model Context Protocol com Open Finance
+  # ==========================================================================
+  pluggy_mcp:
+    image: *pluggy_mcp_image
+
+    ports:
+      - "${PLUGGY_MCP_PORT:-3002}:3002"
+
+    environment:
+      # Credenciais da API Pluggy (obrigatório)
+      # Obtenha em: https://dashboard.pluggy.ai > Aplicações
+      - PLUGGY_CLIENT_ID=${PLUGGY_CLIENT_ID}
+      - PLUGGY_CLIENT_SECRET=${PLUGGY_CLIENT_SECRET}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

@@ -2,7 +2,7 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
-# VERSÃO: 1.1
+# VERSÃO: 1.4
 # VPS: fin-tools
 # AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
@@ -10,11 +10,11 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
-# SERVIÇOS COMENTADOS:
-#   - mcp: sstefanov/actual-mcp (incompatível com API atual)
+#   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
+#   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
 #
 # DEPLOY:
-#   docker stack deploy -c actual.yaml actual --env-file actual.env
+#   docker stack deploy -c actual.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
 #
 # ============================================================================
 
@@ -23,8 +23,9 @@ version: "3.7"
 # ============================================================================
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
-  # actual_mcp: &actual_mcp_image sstefanov/actual-mcp:latest  # INCOMPATÍVEL com API atual
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
+  actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
+  actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
 
 services:
   # ==========================================================================
@@ -114,14 +115,134 @@ services:
     healthcheck:
       disable: true
 
+  # ==========================================================================
+  # ACTUAL BI POSTGRES - Banco relacional para BI e conexao direta
+  # ==========================================================================
+  actual_bi_postgres:
+    image: *actual_bi_postgres_image
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_BI_POSTGRES_PORT:-55432}:5432"
+
+    environment:
+      - POSTGRES_DB=${ACTUAL_BI_DB_NAME:-actual_bi}
+      - POSTGRES_USER=${ACTUAL_BI_DB_USER:-actual_bi}
+      - POSTGRES_PASSWORD=${ACTUAL_BI_DB_PASSWORD}
+      - TZ=America/Sao_Paulo
+
+    volumes:
+      - actual_bi_postgres_data:/var/lib/postgresql/data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ACTUAL_BI_DB_USER:-actual_bi} -d ${ACTUAL_BI_DB_NAME:-actual_bi}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ==========================================================================
+  # ACTUAL BI SYNC - Worker conservador (Actual API -> PostgreSQL)
+  # ==========================================================================
+  actual_bi_sync:
+    image: *actual_bi_sync_image
+    networks:
+      - actual_internal
+
+    environment:
+      # Origem: API do proprio serviço Actual nesta stack
+      - ACTUAL_HTTP_API_BASE_URL=http://api:5007/v1
+      - ACTUAL_HTTP_API_KEY=${ACTUAL_API_KEY}
+      - ACTUAL_HTTP_TIMEOUT_SECONDS=${ACTUAL_HTTP_TIMEOUT_SECONDS:-30}
+      - ACTUAL_HTTP_VERIFY_SSL=${ACTUAL_HTTP_VERIFY_SSL:-true}
+      - ACTUAL_HTTP_RETRIES=${ACTUAL_HTTP_RETRIES:-3}
+      - ACTUAL_HTTP_BACKOFF_SECONDS=${ACTUAL_HTTP_BACKOFF_SECONDS:-2}
+
+      # Escopo de ingestao
+      - ACTUAL_BI_ENDPOINTS=${ACTUAL_BI_ENDPOINTS:-accounts,transactions,payees,categories,categorygroups,schedules}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
+      - ACTUAL_BI_TRANSACTIONS_SINCE_DATE=${ACTUAL_BI_TRANSACTIONS_SINCE_DATE:-2000-01-01}
+      - ACTUAL_BI_TRANSACTIONS_UNTIL_DATE=${ACTUAL_BI_TRANSACTIONS_UNTIL_DATE:-}
+      - ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS=${ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS:-true}
+      - ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR=${ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR:-true}
+
+      # Destino: PostgreSQL
+      - DB_HOST=${STACK_PREFIX:-actual_budget}_actual_bi_postgres
+      - DB_PORT=5432
+      - DB_NAME=${ACTUAL_BI_DB_NAME:-actual_bi}
+      - DB_USER=${ACTUAL_BI_DB_USER:-actual_bi}
+      - DB_PASSWORD=${ACTUAL_BI_DB_PASSWORD}
+      - DB_SSLMODE=${ACTUAL_BI_DB_SSLMODE:-disable}
+      - DB_CONNECT_TIMEOUT_SECONDS=${ACTUAL_BI_DB_CONNECT_TIMEOUT_SECONDS:-10}
+
+      # Usuario read-only para conexao direta (opcional)
+      - READONLY_DB_USER=${ACTUAL_BI_READONLY_DB_USER:-}
+      - READONLY_DB_PASSWORD=${ACTUAL_BI_READONLY_DB_PASSWORD:-}
+
+      # Worker
+      - SYNC_INTERVAL_SECONDS=${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}
+      - RUN_ONCE=${ACTUAL_BI_SYNC_RUN_ONCE:-false}
+      - LOG_LEVEL=${ACTUAL_BI_SYNC_LOG_LEVEL:-INFO}
+      - HEALTH_SUCCESS_FILE=/tmp/actual_bi_sync_last_success
+      - HEALTH_ERROR_FILE=/tmp/actual_bi_sync_last_error
+      - TZ=America/Sao_Paulo
+
+    depends_on:
+      - api
+      - actual_bi_postgres
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/actual_bi_sync_last_success"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
 # ============================================================================
 # VOLUMES
 # ============================================================================
 volumes:
   actual_data:
     driver: local
-  # actual_mcp_data:
-  #   driver: local
+  actual_bi_postgres_data:
+    name: ${ACTUAL_BI_POSTGRES_DATA_VOLUME_NAME:-actual_bi_postgres_data}
 
 # ============================================================================
 # NETWORKS
@@ -130,4 +251,3 @@ networks:
   actual_internal:
     driver: overlay
     internal: true
-

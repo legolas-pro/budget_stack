@@ -1,0 +1,102 @@
+version: "3.8"
+
+# ============================================================================
+# STACK: DuckDB + Duck-UI
+# VERSÃO: 2.0
+# ============================================================================
+# Motor analítico DuckDB com MCP server e interface web Duck-UI
+# Acesso via Cloudflared (sem Traefik) - porta local exposta
+#
+# DEPLOY:
+#   1. Copie duckdb.env.example para duckdb.env e preencha
+#   2. docker stack deploy -c duckdb.yaml duckdb
+#
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  duckdb: &duckdb_image duckdb/duckdb:latest
+  duck-ui: &duck_ui_image ghcr.io/ibero-data/duck-ui:latest
+
+services:
+
+  # ==========================================================================
+  # DuckDB - Motor analítico + MCP Server
+  # ==========================================================================
+  duckdb:
+    image: *duckdb_image
+    tty: true
+    volumes:
+      - duckdb_data:${DUCKDB_DATA_PATH:-/data}
+    networks:
+      - duckdb_internal
+    ports:
+      - "${DUCKDB_UI_PORT:-3099}:${DUCKDB_UI_INTERNAL_PORT:-4213}"
+    entrypoint: /duckdb
+    command: ${DUCKDB_DATA_PATH:-/data}/${DUCKDB_DATABASE:-main.db} -cmd "LOAD ui; LOAD duckdb_mcp;"
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "${DUCKDB_CPU_LIMIT:-1.0}"
+          memory: ${DUCKDB_MEMORY_LIMIT:-1024M}
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ==========================================================================
+  # Duck-UI - Interface web para DuckDB
+  # ==========================================================================
+  duck-ui:
+    image: *duck_ui_image
+    ports:
+      - "${DUCK_UI_PORT:-3088}:${DUCK_UI_INTERNAL_PORT:-5522}"
+    volumes:
+      - duckdb_data:${DUCKDB_DATA_PATH:-/data}
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+    networks:
+      - duckdb_internal
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "${DUCK_UI_CPU_LIMIT:-1.0}"
+          memory: ${DUCK_UI_MEMORY_LIMIT:-1024M}
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  duckdb_data:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  duckdb_internal:
+    driver: overlay

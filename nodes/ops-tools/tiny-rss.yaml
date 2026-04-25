@@ -1,0 +1,212 @@
+version: "3.7"
+
+# ============================================================================
+# STACK: Tiny Tiny RSS (Agregador de Feeds)
+# VERSÃO: 1.0
+# AUTOR: Legolas @ Dinamo Pro
+# ============================================================================
+# Uso: docker stack deploy -c tiny-rss.yaml tiny-rss --env-file tiny-rss.env
+# ============================================================================
+
+# ============================================================================
+# IMAGENS (altere as versões aqui)
+# ============================================================================
+x-images:
+  ttrss:       &ttrss_image       ${TTRSS_IMAGE:-supahgreg/tt-rss:latest}
+  ttrss_nginx: &ttrss_nginx_image ${TTRSS_NGINX_IMAGE:-supahgreg/tt-rss-web-nginx:latest}
+  postgres:    &postgres_image    ${POSTGRES_IMAGE:-postgres:17-alpine}
+
+# ============================================================================
+# ENV compartilhado entre app e updater
+# ============================================================================
+x-ttrss-env: &ttrss_env
+  environment:
+    - TZ=${TZ:-America/Sao_Paulo}
+    - OWNER_UID=${PUID:-1000}
+    - OWNER_GID=${PGID:-1000}
+    - PHP_WORKER_MAX_CHILDREN=${PHP_WORKER_MAX_CHILDREN:-5}
+    - PHP_WORKER_MEMORY_LIMIT=${PHP_WORKER_MEMORY_LIMIT:-256M}
+    - TTRSS_DB_HOST=db
+    - TTRSS_DB_PORT=5432
+    - TTRSS_DB_USER=${TTRSS_DB_USER:-postgres}
+    - TTRSS_DB_PASS=${TTRSS_DB_PASS}
+    - TTRSS_DB_NAME=${TTRSS_DB_NAME:-postgres}
+    - ADMIN_USER_PASS=${ADMIN_USER_PASS}
+    - ADMIN_USER_ACCESS_LEVEL=${ADMIN_USER_ACCESS_LEVEL:-10}
+    - TTRSS_SELF_URL_PATH=${TTRSS_SELF_URL_PATH}
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
+
+x-ttrss-volumes: &ttrss_volumes
+  volumes:
+    - ttrss_app:/var/www/html
+
+services:
+  # ==========================================================================
+  # DB - PostgreSQL
+  # ==========================================================================
+  db:
+    image: *postgres_image
+    networks:
+      - internal_network
+
+    environment:
+      - POSTGRES_USER=${TTRSS_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${TTRSS_DB_PASS}
+      - POSTGRES_DB=${TTRSS_DB_NAME:-postgres}
+
+    volumes:
+      - ttrss_db:/var/lib/postgresql/data
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TTRSS_DB_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==========================================================================
+  # APP - PHP-FPM
+  # ==========================================================================
+  app:
+    image: *ttrss_image
+    networks:
+      - internal_network
+
+    <<: [*ttrss_env, *ttrss_volumes]
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/index.php || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================================================
+  # UPDATER - Atualização de feeds em background
+  # ==========================================================================
+  updater:
+    image: *ttrss_image
+    networks:
+      - internal_network
+
+    <<: [*ttrss_env, *ttrss_volumes]
+
+    command: /opt/tt-rss/updater.sh
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # ==========================================================================
+  # WEB-NGINX - Frontend HTTP
+  # ==========================================================================
+  web-nginx:
+    image: *ttrss_nginx_image
+    networks:
+      - internal_network
+      - proxy_network
+
+    ports:
+      - "${TTRSS_PORT:-8280}:80"
+
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    volumes:
+      - ttrss_app:/var/www/html:ro
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  ttrss_db:
+    name: ${STACK_PREFIX:-tiny-rss}_db
+  ttrss_app:
+    name: ${STACK_PREFIX:-tiny-rss}_app
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  internal_network:
+    driver: overlay
+  proxy_network:
+    external: true
+    name: ${NETWORK_NAME}
