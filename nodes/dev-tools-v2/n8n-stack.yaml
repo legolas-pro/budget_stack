@@ -73,6 +73,7 @@ x-n8n-common-env: &n8n_common_env
   ## ===== LIMPEZA DE DADOS =====
   - EXECUTIONS_DATA_PRUNE=true
   - EXECUTIONS_DATA_MAX_AGE=336
+  - EXECUTIONS_DATA_PRUNE_MAX_COUNT=0
 
   ## ===== IA/OPENAI =====
   - N8N_AI_ENABLED=true
