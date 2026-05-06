@@ -12,6 +12,8 @@ version: "3.7"
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
 #   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
 #   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
+#   - actual_mcp         -> Model Context Protocol (SSE)     host: ${ACTUAL_MCP_PORT:-3001}
+#   - pluggy_mcp         -> MCP Open Finance                 host: ${PLUGGY_MCP_PORT:-3002}
 #
 # DEPLOY:
 #   docker stack deploy -c actual.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
@@ -26,6 +28,8 @@ x-images:
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
+  actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
+  pluggy_mcp: &pluggy_mcp_image ${PLUGGY_MCP_IMAGE:-pluggy-mcp:local}
 
 services:
   # ==========================================================================
@@ -234,6 +238,90 @@ services:
       timeout: 10s
       retries: 5
       start_period: 45s
+
+  # ==========================================================================
+  # ACTUAL MCP - Model Context Protocol Server (SSE)
+  # ==========================================================================
+  actual_mcp:
+    image: ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
+    networks:
+      - actual_internal
+
+    ports:
+      - "${ACTUAL_MCP_PORT:-3001}:3000"
+
+    environment:
+      - ACTUAL_SERVER_URL=http://app:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
+      - BEARER_TOKEN=${ACTUAL_API_KEY}
+      - TZ=America/Sao_Paulo
+
+    command: ["--sse", "--enable-write", "--enable-bearer", "--port", "3000"]
+
+    depends_on:
+      - app
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # ==========================================================================
+  # PLUGGY MCP - Integração Model Context Protocol com Open Finance
+  # ==========================================================================
+  pluggy_mcp:
+    image: *pluggy_mcp_image
+    networks:
+      - actual_internal
+
+    ports:
+      - "${PLUGGY_MCP_PORT:-3002}:3002"
+
+    environment:
+      # Credenciais da API Pluggy (obrigatório)
+      # Obtenha em: https://dashboard.pluggy.ai > Aplicações
+      - PLUGGY_CLIENT_ID=${PLUGGY_CLIENT_ID}
+      - PLUGGY_CLIENT_SECRET=${PLUGGY_CLIENT_SECRET}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 # ============================================================================
 # VOLUMES

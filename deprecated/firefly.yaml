@@ -11,10 +11,9 @@ version: "3.7"
 #   - Firefly III: Gerenciador de finanças pessoais (PHP/Laravel)
 #   - MariaDB: Banco de dados
 #   - Cron: Tarefas agendadas
-#   - MCP: Integração Model Context Protocol (LamPyrid, streamable HTTP)
 #
 # DEPLOY:
-#   docker stack deploy -c firefly.yaml firefly --env-file firefly.env
+#   docker stack deploy -c firefly.yaml firefly
 #
 # ============================================================================
 
@@ -25,7 +24,7 @@ x-images:
   mariadb: &mariadb_image mariadb:11.4
   firefly: &firefly_image fireflyiii/core:version-6
   alpine: &alpine_image alpine:3.19
-  lampyrid: &lampyrid_image ${FIREFLY_MCP_IMAGE:-firefly-mcp:local}
+  lampyrid: &lampyrid_image ghcr.io/radcod3/lampyrid:latest
 
 services:
   # ==========================================================================
@@ -37,7 +36,7 @@ services:
       - firefly_internal
 
     environment:
-      - MYSQL_ROOT_PASSWORD=${FIREFLY_MARIADB_ROOT_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${FIREFLY_DB_NAME:-firefly}
       - MYSQL_USER=${FIREFLY_DB_USER:-firefly}
       - MYSQL_PASSWORD=${FIREFLY_DB_PASSWORD}
@@ -210,32 +209,16 @@ services:
       - firefly_internal
 
     ports:
-      - "${FIREFLY_MCP_PORT:-3002}:3000"
+      - "${LAMPYRID_MCP_PORT:-3002}:3000"
 
     environment:
       - FIREFLY_BASE_URL=http://app:8080
       - FIREFLY_TOKEN=${FIREFLY_API_TOKEN}
-      # Supergateway -> LamPyrid (stdio) -> HTTP streamable
-      - MCP_TRANSPORT=stdio
+      - MCP_TRANSPORT=sse
       - MCP_HOST=0.0.0.0
       - MCP_PORT=3000
-      - FIREFLY_MCP_OUTPUT_TRANSPORT=${FIREFLY_MCP_OUTPUT_TRANSPORT:-streamableHttp}
-      - FIREFLY_MCP_HTTP_PATH=${FIREFLY_MCP_HTTP_PATH:-/mcp}
-      - FIREFLY_MCP_HEALTH_ENDPOINT=${FIREFLY_MCP_HEALTH_ENDPOINT:-/health}
-      - FIREFLY_MCP_STDIO_CMD=${FIREFLY_MCP_STDIO_CMD:-lampyrid}
-      - LOGGING_LEVEL=${FIREFLY_MCP_LOG_LEVEL:-INFO}
-      # OAuth opcional para acesso remoto seguro via Claude Connector
-      - GOOGLE_CLIENT_ID=${FIREFLY_MCP_GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${FIREFLY_MCP_GOOGLE_CLIENT_SECRET:-}
-      - SERVER_BASE_URL=${FIREFLY_MCP_PUBLIC_URL:-}
-      # Persistência opcional de sessões/tokens OAuth entre reinícios
-      - JWT_SIGNING_KEY=${FIREFLY_MCP_JWT_SIGNING_KEY:-}
-      - OAUTH_STORAGE_ENCRYPTION_KEY=${FIREFLY_MCP_OAUTH_STORAGE_ENCRYPTION_KEY:-}
-      - OAUTH_STORAGE_PATH=/app/data/oauth
+      - LOGGING_LEVEL=${LAMPYRID_LOG_LEVEL:-INFO}
       - TZ=America/Sao_Paulo
-
-    volumes:
-      - firefly_mcp_oauth_data:/app/data/oauth
 
     depends_on:
       - app
@@ -256,13 +239,6 @@ services:
       restart_policy:
         condition: any
 
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 45s
-
 # ============================================================================
 # VOLUMES
 # ============================================================================
@@ -270,8 +246,6 @@ volumes:
   firefly_mariadb_data:
     driver: local
   firefly_upload:
-    driver: local
-  firefly_mcp_oauth_data:
     driver: local
 
 # ============================================================================
