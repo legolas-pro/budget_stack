@@ -283,15 +283,19 @@ services:
   # ==========================================================================
   # PLUGGY MCP - Integração Model Context Protocol com Open Finance
   # ==========================================================================
-  pluggy_mcp:
+  pluggy-mcp:
+    # Atenção: docker stack deploy ignora `build`, a imagem deve ser construída antes
+    # ou use docker-compose para ambiente de dev.
     image: *pluggy_mcp_image
+    ports:
+      # Ajustado para 3002 para bater com o comentário no cabeçalho e o healthcheck
+      - "${PLUGGY_MCP_PORT:-3002}:3002"
     networks:
       - actual_internal
 
-    ports:
-      - "${PLUGGY_MCP_PORT:-3002}:3002"
-
     environment:
+      # O gerador mapeia as variáveis de ambiente automaticamente para a API
+      - X_API_KEY=${PLUGGY_API_KEY}
       # Credenciais da API Pluggy (obrigatório)
       # Obtenha em: https://dashboard.pluggy.ai > Aplicações
       - PLUGGY_CLIENT_ID=${PLUGGY_CLIENT_ID}
