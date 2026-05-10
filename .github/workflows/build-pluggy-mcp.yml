@@ -11,8 +11,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # A imagem será salva como ghcr.io/seu-usuario/pluggy-mcp
-  IMAGE_NAME: ${{ github.repository_owner }}/pluggy-mcp
+  # A imagem será salva como ghcr.io/git-dinamo/pluggy-mcp
+  # É obrigatório que nomes de imagens Docker sejam todos em letras minúsculas.
+  IMAGE_NAME: git-dinamo/pluggy-mcp
 
 jobs:
   build-and-push:
