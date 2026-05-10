@@ -29,7 +29,7 @@ x-images:
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
   actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
-  pluggy_mcp: &pluggy_mcp_image ${PLUGGY_MCP_IMAGE:-pluggy-mcp:local}
+  pluggy_mcp: &pluggy_mcp_image ${PLUGGY_MCP_IMAGE:-ghcr.io/legolas-pro/pluggy-mcp:latest}
 
 services:
   # ==========================================================================
