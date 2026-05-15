@@ -4,6 +4,8 @@ Precisando dar uma geral aqui
 
 ## 🔌 Conectando o Pluggy MCP aos Assistants
 
+Referência completa: [docs/pluggy-mcp-client-reference.md](/home/legolas/Documentos/dev-dir/devops-stack/docs/pluggy-mcp-client-reference.md)
+
 O serviço do Pluggy MCP roda localmente utilizando Server-Sent Events (SSE) na porta `3002`. Como você está utilizando todas as ferramentas via CLI, basta rodar os comandos abaixo nos seus respectivos terminais para plugar o serviço:
 
 ### 🤖 Claude Code

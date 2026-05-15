@@ -288,15 +288,15 @@ services:
     # ou use docker-compose para ambiente de dev.
     image: *pluggy_mcp_image
     ports:
-      # Ajustado para 3002 para bater com o comentário no cabeçalho e o healthcheck
-      - "${PLUGGY_MCP_PORT:-3002}:3002"
+      # Host 3002 -> container 3000 (a imagem expõe SSE em /sse na porta 3000)
+      - "${PLUGGY_MCP_PORT:-3002}:3000"
     networks:
       - actual_internal
 
     environment:
-      # O gerador mapeia as variáveis de ambiente automaticamente para a API
-      - X_API_KEY=${PLUGGY_API_KEY}
-      # Credenciais da API Pluggy (obrigatório)
+      # A imagem gerada espera API_KEY_DEFAULT para aplicar o header X-API-KEY.
+      - API_KEY_DEFAULT=${PLUGGY_API_KEY}
+      # Opcional: mantidas para referencia operacional / geracao manual de nova API key.
       # Obtenha em: https://dashboard.pluggy.ai > Aplicações
       - PLUGGY_CLIENT_ID=${PLUGGY_CLIENT_ID}
       - PLUGGY_CLIENT_SECRET=${PLUGGY_CLIENT_SECRET}
@@ -321,7 +321,7 @@ services:
         max_attempts: 5
 
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
