@@ -10,6 +10,7 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
+#   - actual_ai   -> Classificação com LLM / automações      sem porta pública
 #   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
 #   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
 #   - actual_mcp         -> Model Context Protocol (SSE)     host: ${ACTUAL_MCP_PORT:-3001}
@@ -26,6 +27,7 @@ version: "3.7"
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
+  actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
   actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
@@ -118,6 +120,89 @@ services:
 
     healthcheck:
       disable: true
+
+  # ==========================================================================
+  # ACTUAL AI - Classificação automática com LLM
+  # https://github.com/sakowicz/actual-ai
+  # ==========================================================================
+  actual_ai:
+    image: *actual_ai_image
+    networks:
+      - actual_internal
+      - actual_egress
+
+    environment:
+      - ACTUAL_SERVER_URL=http://app:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_BUDGET_ID=${ACTUAL_BUDGET_SYNC_ID}
+      - FEATURES=${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","syncAccountsBeforeClassify","rerunMissedTransactions"]}
+      - CLASSIFICATION_SCHEDULE_CRON=${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
+      - TZ=${TZ:-America/Sao_Paulo}
+
+      # Provedor
+      - LLM_PROVIDER=${ACTUAL_AI_LLM_PROVIDER:-openai}
+
+      # OpenAI / OpenAI-compatible
+      - OPENAI_API_KEY=${ACTUAL_AI_OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${ACTUAL_AI_OPENAI_MODEL:-}
+      - OPENAI_BASE_URL=${ACTUAL_AI_OPENAI_BASE_URL:-}
+
+      # Anthropic
+      - ANTHROPIC_API_KEY=${ACTUAL_AI_ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ACTUAL_AI_ANTHROPIC_MODEL:-}
+      - ANTHROPIC_BASE_URL=${ACTUAL_AI_ANTHROPIC_BASE_URL:-}
+
+      # Groq
+      - GROQ_API_KEY=${ACTUAL_AI_GROQ_API_KEY:-}
+      - GROQ_MODEL=${ACTUAL_AI_GROQ_MODEL:-}
+      - GROQ_BASE_URL=${ACTUAL_AI_GROQ_BASE_URL:-}
+
+      # OpenRouter
+      - OPENROUTER_API_KEY=${ACTUAL_AI_OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${ACTUAL_AI_OPENROUTER_MODEL:-}
+      - OPENROUTER_BASE_URL=${ACTUAL_AI_OPENROUTER_BASE_URL:-}
+      - OPENROUTER_REFERRER=${ACTUAL_AI_OPENROUTER_REFERRER:-}
+      - OPENROUTER_TITLE=${ACTUAL_AI_OPENROUTER_TITLE:-actual-ai}
+      - OPENROUTER_ENABLE_TOOL_CALLING=${ACTUAL_AI_OPENROUTER_ENABLE_TOOL_CALLING:-false}
+
+      # Google Gemini
+      - GOOGLE_GENERATIVE_AI_API_KEY=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_API_KEY:-}
+      - GOOGLE_GENERATIVE_AI_MODEL=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_MODEL:-}
+      - GOOGLE_GENERATIVE_AI_BASE_URL=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_BASE_URL:-}
+
+      # Ollama
+      - OLLAMA_MODEL=${ACTUAL_AI_OLLAMA_MODEL:-}
+      - OLLAMA_BASE_URL=${ACTUAL_AI_OLLAMA_BASE_URL:-}
+
+      # Recursos opcionais
+      - VALUESERP_API_KEY=${ACTUAL_AI_VALUESERP_API_KEY:-}
+      - ACTUAL_E2E_PASSWORD=${ACTUAL_AI_ACTUAL_E2E_PASSWORD:-}
+      - NODE_TLS_REJECT_UNAUTHORIZED=${ACTUAL_AI_NODE_TLS_REJECT_UNAUTHORIZED:-}
+      - NOT_GUESSED_TAG=${ACTUAL_AI_NOT_GUESSED_TAG:-}
+      - GUESSED_TAG=${ACTUAL_AI_GUESSED_TAG:-}
+      - REQUESTS_PER_MINUTE=${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
+      - TOKENS_PER_MINUTE=${ACTUAL_AI_TOKENS_PER_MINUTE:-}
+
+    depends_on:
+      - app
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
 
   # ==========================================================================
   # ACTUAL BI POSTGRES - Banco relacional para BI e conexao direta
@@ -343,3 +428,5 @@ networks:
   actual_internal:
     driver: overlay
     internal: true
+  actual_egress:
+    driver: overlay
