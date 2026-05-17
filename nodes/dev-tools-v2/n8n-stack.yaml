@@ -37,6 +37,7 @@ x-n8n-common-env: &n8n_common_env
   - N8N_EDITOR_BASE_URL=https://${N8N_HOST}/
   - WEBHOOK_URL=https://${WEBHOOK_HOST}/
   - N8N_PROTOCOL=https
+  - N8N_PROXY_HOPS=${N8N_PROXY_HOPS:-1}
   - N8N_ONBOARDING_FLOW_DISABLED=true
 
   ## ===== EXECUÇÃO =====
