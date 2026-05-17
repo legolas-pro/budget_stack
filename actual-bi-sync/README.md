@@ -18,7 +18,7 @@ Worker Python para sincronizar dados do `actual-http-api` para PostgreSQL com:
 
 ## Variaveis principais
 
-- `ACTUAL_HTTP_API_BASE_URL` (ex.: `http://172.17.0.1:5007/v1`)
+- `ACTUAL_HTTP_API_BASE_URL` (ex.: `http://api:5007/v1` na stack ou `http://SEU-HOST:5007/v1` fora dela)
 - `ACTUAL_HTTP_API_KEY`
 - `ACTUAL_BUDGET_SYNC_ID` (UUID do budget unico a sincronizar)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
@@ -30,5 +30,5 @@ Worker Python para sincronizar dados do `actual-http-api` para PostgreSQL com:
 ## Build local
 
 ```bash
-docker build -t actual-bi-sync:local nodes/fin-tools/actual-bi-sync/
+docker build -t actual-bi-sync:local actual-bi-sync/
 ```

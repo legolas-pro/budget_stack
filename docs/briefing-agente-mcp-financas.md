@@ -8,18 +8,18 @@ Este briefing e um contexto operacional para um agente que trabalha com MCPs fin
 
 Sem foco em Swarm/containers; foco em contrato e uso de tools.
 
-## 2) MCPs mapeados em `nodes` (visao tool-first)
+## 2) MCPs mapeados no repo (visao tool-first)
 
 | MCP | Fonte local | Catalogo de tools visivel no repo? | Conclusao pratica |
 |---|---|---|---|
-| Pluggy MCP | `nodes/fin-tools/pluggy-mcp/src/index.ts` | Sim | Tools podem ser documentadas de forma exata |
-| Actual MCP | `nodes/fin-tools/actual-mcp/Dockerfile` | Nao | Catalogar em runtime via `tools/list` |
-| LamPyrid (Firefly MCP) | `nodes/fin-tools/firefly.yaml` | Nao | Catalogar em runtime via `tools/list` |
-| Metabase MCP | `nodes/ops-tools/metabase-mcp/Dockerfile` | Nao | Catalogar em runtime via `tools/list` |
+| Pluggy MCP | `pluggy-openapis3-mcp-build/src/src/index.ts` | Sim | Tools podem ser documentadas de forma exata |
+| Actual MCP | `imagem externa / nao versionado neste repo` | Nao | Catalogar em runtime via `tools/list` |
+| LamPyrid (Firefly MCP) | `fora do escopo deste repo` | Nao | Catalogar em runtime via `tools/list` |
+| Metabase MCP | `fora do escopo deste repo` | Nao | Catalogar em runtime via `tools/list` |
 
 ## 3) Catalogo confirmado (Pluggy MCP)
 
-Fonte de verdade: `nodes/fin-tools/pluggy-mcp/src/index.ts`.
+Fonte de verdade: `pluggy-openapis3-mcp-build/src/src/index.ts`.
 
 ### 3.1 Tool `listConnectors`
 Input:

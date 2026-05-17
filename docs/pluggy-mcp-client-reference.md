@@ -1,6 +1,6 @@
 # Pluggy MCP Client Reference
 
-Referencia para conectar clientes MCP ao servico `pluggy-mcp` publicado pela stack [`nodes/fin-tools/actual.yaml`](/home/legolas/Documentos/dev-dir/devops-stack/nodes/fin-tools/actual.yaml).
+Referencia para conectar clientes MCP ao servico `pluggy-mcp` publicado pela stack [docker-compose.yaml](../docker-compose.yaml).
 
 ## Endpoint
 

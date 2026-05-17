@@ -1,10 +1,10 @@
-# stacks by legolas
+# Budget Stack
 
-Precisando dar uma geral aqui
+Stack Docker para Actual Budget, integrações MCP e sincronização para BI.
 
 ## 🔌 Conectando o Pluggy MCP aos Assistants
 
-Referência completa: [docs/pluggy-mcp-client-reference.md](/home/legolas/Documentos/dev-dir/devops-stack/docs/pluggy-mcp-client-reference.md)
+Referência completa: [docs/pluggy-mcp-client-reference.md](docs/pluggy-mcp-client-reference.md)
 
 O serviço do Pluggy MCP roda localmente utilizando Server-Sent Events (SSE) na porta `3002`. Como você está utilizando todas as ferramentas via CLI, basta rodar os comandos abaixo nos seus respectivos terminais para plugar o serviço:
 

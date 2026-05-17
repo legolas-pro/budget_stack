@@ -3,8 +3,6 @@ version: "3.7"
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
 # VERSÃO: 1.4
-# VPS: fin-tools
-# AUTOR: Legolas @ Dinamo Pro
 # ============================================================================
 #
 # SERVIÇOS ATIVOS:
@@ -17,7 +15,7 @@ version: "3.7"
 #   - pluggy_mcp         -> MCP Open Finance                 host: ${PLUGGY_MCP_PORT:-3002}
 #
 # DEPLOY:
-#   docker stack deploy -c actual.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
+#   docker stack deploy -c docker-compose.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
 #
 # ============================================================================
 
@@ -259,7 +257,7 @@ services:
 
     environment:
       # Origem: API do proprio serviço Actual nesta stack
-      - ACTUAL_HTTP_API_BASE_URL=http://api:5007/v1
+      - ACTUAL_HTTP_API_BASE_URL=${ACTUAL_HTTP_API_BASE_URL:-http://api:5007/v1}
       - ACTUAL_HTTP_API_KEY=${ACTUAL_API_KEY}
       - ACTUAL_HTTP_TIMEOUT_SECONDS=${ACTUAL_HTTP_TIMEOUT_SECONDS:-30}
       - ACTUAL_HTTP_VERIFY_SSL=${ACTUAL_HTTP_VERIFY_SSL:-true}

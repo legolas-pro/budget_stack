@@ -320,11 +320,9 @@ def configure_logging() -> None:
 
 
 def load_settings() -> Settings:
-    api_base = (
-        os.getenv("ACTUAL_HTTP_API_BASE_URL", "http://172.17.0.1:5007/v1")
-        .strip()
-        .rstrip("/")
-    )
+    api_base = (os.getenv("ACTUAL_HTTP_API_BASE_URL") or "").strip().rstrip("/")
+    if not api_base:
+        raise RuntimeError("ACTUAL_HTTP_API_BASE_URL is required")
     api_key = (os.getenv("ACTUAL_HTTP_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("ACTUAL_HTTP_API_KEY is required")
