@@ -130,56 +130,90 @@ services:
       - actual_egress
 
     environment:
-      - ACTUAL_SERVER_URL=http://app:5006
-      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_BUDGET_ID=${ACTUAL_BUDGET_SYNC_ID}
-      - FEATURES=${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","syncAccountsBeforeClassify","rerunMissedTransactions"]}
-      - CLASSIFICATION_SCHEDULE_CRON=${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
-      - TZ=${TZ:-America/Sao_Paulo}
+      ACTUAL_SERVER_URL: http://app:5006
+      ACTUAL_PASSWORD: ${ACTUAL_PASSWORD}
+      ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
+      FEATURES: ${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","syncAccountsBeforeClassify","rerunMissedTransactions","freeWebSearch"]}
+      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
+      TZ: ${TZ:-America/Sao_Paulo}
 
       # Provedor
-      - LLM_PROVIDER=${ACTUAL_AI_LLM_PROVIDER:-openai}
+      LLM_PROVIDER: ${ACTUAL_AI_LLM_PROVIDER:-openai}
 
       # OpenAI / OpenAI-compatible
-      - OPENAI_API_KEY=${ACTUAL_AI_OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${ACTUAL_AI_OPENAI_MODEL:-}
-      - OPENAI_BASE_URL=${ACTUAL_AI_OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${ACTUAL_AI_OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${ACTUAL_AI_OPENAI_MODEL:-}
+      OPENAI_BASE_URL: ${ACTUAL_AI_OPENAI_BASE_URL:-}
 
       # Anthropic
-      - ANTHROPIC_API_KEY=${ACTUAL_AI_ANTHROPIC_API_KEY:-}
-      - ANTHROPIC_MODEL=${ACTUAL_AI_ANTHROPIC_MODEL:-}
-      - ANTHROPIC_BASE_URL=${ACTUAL_AI_ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ACTUAL_AI_ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ACTUAL_AI_ANTHROPIC_MODEL:-}
+      ANTHROPIC_BASE_URL: ${ACTUAL_AI_ANTHROPIC_BASE_URL:-}
 
       # Groq
-      - GROQ_API_KEY=${ACTUAL_AI_GROQ_API_KEY:-}
-      - GROQ_MODEL=${ACTUAL_AI_GROQ_MODEL:-}
-      - GROQ_BASE_URL=${ACTUAL_AI_GROQ_BASE_URL:-}
+      GROQ_API_KEY: ${ACTUAL_AI_GROQ_API_KEY:-}
+      GROQ_MODEL: ${ACTUAL_AI_GROQ_MODEL:-}
+      GROQ_BASE_URL: ${ACTUAL_AI_GROQ_BASE_URL:-}
 
       # OpenRouter
-      - OPENROUTER_API_KEY=${ACTUAL_AI_OPENROUTER_API_KEY:-}
-      - OPENROUTER_MODEL=${ACTUAL_AI_OPENROUTER_MODEL:-}
-      - OPENROUTER_BASE_URL=${ACTUAL_AI_OPENROUTER_BASE_URL:-}
-      - OPENROUTER_REFERRER=${ACTUAL_AI_OPENROUTER_REFERRER:-}
-      - OPENROUTER_TITLE=${ACTUAL_AI_OPENROUTER_TITLE:-actual-ai}
-      - OPENROUTER_ENABLE_TOOL_CALLING=${ACTUAL_AI_OPENROUTER_ENABLE_TOOL_CALLING:-false}
+      OPENROUTER_API_KEY: ${ACTUAL_AI_OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${ACTUAL_AI_OPENROUTER_MODEL:-}
+      OPENROUTER_BASE_URL: ${ACTUAL_AI_OPENROUTER_BASE_URL:-}
+      OPENROUTER_REFERRER: ${ACTUAL_AI_OPENROUTER_REFERRER:-}
+      OPENROUTER_TITLE: ${ACTUAL_AI_OPENROUTER_TITLE:-actual-ai}
+      OPENROUTER_ENABLE_TOOL_CALLING: ${ACTUAL_AI_OPENROUTER_ENABLE_TOOL_CALLING:-false}
 
       # Google Gemini
-      - GOOGLE_GENERATIVE_AI_API_KEY=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_API_KEY:-}
-      - GOOGLE_GENERATIVE_AI_MODEL=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_MODEL:-}
-      - GOOGLE_GENERATIVE_AI_BASE_URL=${ACTUAL_AI_GOOGLE_GENERATIVE_AI_BASE_URL:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_MODEL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_MODEL:-}
+      GOOGLE_GENERATIVE_AI_BASE_URL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_BASE_URL:-}
 
       # Ollama
-      - OLLAMA_MODEL=${ACTUAL_AI_OLLAMA_MODEL:-}
-      - OLLAMA_BASE_URL=${ACTUAL_AI_OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${ACTUAL_AI_OLLAMA_MODEL:-}
+      OLLAMA_BASE_URL: ${ACTUAL_AI_OLLAMA_BASE_URL:-}
 
       # Recursos opcionais
-      - VALUESERP_API_KEY=${ACTUAL_AI_VALUESERP_API_KEY:-}
-      - ACTUAL_E2E_PASSWORD=${ACTUAL_AI_ACTUAL_E2E_PASSWORD:-}
-      - NODE_TLS_REJECT_UNAUTHORIZED=${ACTUAL_AI_NODE_TLS_REJECT_UNAUTHORIZED:-}
-      - NOT_GUESSED_TAG=${ACTUAL_AI_NOT_GUESSED_TAG:-}
-      - GUESSED_TAG=${ACTUAL_AI_GUESSED_TAG:-}
-      - REQUESTS_PER_MINUTE=${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
-      - TOKENS_PER_MINUTE=${ACTUAL_AI_TOKENS_PER_MINUTE:-}
+      VALUESERP_API_KEY: ${ACTUAL_AI_VALUESERP_API_KEY:-}
+      ACTUAL_E2E_PASSWORD: ${ACTUAL_AI_ACTUAL_E2E_PASSWORD:-}
+      NODE_TLS_REJECT_UNAUTHORIZED: ${ACTUAL_AI_NODE_TLS_REJECT_UNAUTHORIZED:-}
+      NOT_GUESSED_TAG: ${ACTUAL_AI_NOT_GUESSED_TAG:-#sardinha-revisar}
+      GUESSED_TAG: ${ACTUAL_AI_GUESSED_TAG:-#sardinha-ai}
+      REQUESTS_PER_MINUTE: ${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
+      TOKENS_PER_MINUTE: ${ACTUAL_AI_TOKENS_PER_MINUTE:-}
+      PROMPT_TEMPLATE: |-
+        Você é o classificador Sardinha do Actual Budget.
+        Sua função aqui não é conversar com humanos. Sua função é apenas escolher a categoria existente mais adequada para a transação ou deixar a transação sem classificação quando a confiança for insuficiente.
+
+        Regras inegociáveis:
+        - Seja conservador. É melhor não classificar do que classificar errado.
+        - Pense em português, mas use exatamente os nomes e IDs das categorias cadastradas no orçamento.
+        - Priorize consistência e repetibilidade. Se o mesmo comerciante normalmente cairia na mesma categoria, preserve isso.
+        - Dê peso alto para importedPayee e payee. Use description/notas apenas como apoio.
+        - Se a transação parecer ambígua, excepcional, parcelada, ajuste interno, transferência, pagamento de cartão, tarifa, estorno ou reembolso, exija confiança alta antes de classificar.
+        - Se houver dúvida material entre categorias parecidas, especialmente entre Necessidades, Conforto, Metas, Prazeres ou equivalentes do orçamento, prefira não classificar.
+        - Não invente contexto que não esteja nos dados ou na busca web.
+        - Use resultado de busca web apenas como apoio para identificar o comerciante; nunca trate a busca como verdade absoluta.
+        - Não proponha novas categorias, a menos que esse recurso esteja explicitamente habilitado fora deste prompt e seja realmente necessário.
+        - Quando classificar, escolha apenas uma categoria existente da lista abaixo.
+
+        Categorias disponíveis:
+        {{#each categoryGroups}}
+        - Grupo: {{name}} (id: {{id}})
+        {{#each categories}}
+          - Categoria: {{name}} (id: {{id}})
+        {{/each}}
+        {{/each}}
+
+        Dados da transação:
+        - Tipo: {{type}}
+        - Valor absoluto: {{amount}}
+        - Data: {{date}}
+        - Cleared: {{cleared}}
+        - Reconciled: {{reconciled}}
+        {{#if payee}}- Payee: {{payee}}
+        {{/if}}{{#if importedPayee}}- Imported Payee: {{importedPayee}}
+        {{/if}}{{#if description}}- Descrição/Notas: {{description}}
+        {{/if}}
 
     depends_on:
       - app
