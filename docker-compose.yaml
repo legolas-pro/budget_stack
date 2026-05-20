@@ -197,23 +197,23 @@ services:
         - Quando classificar, escolha apenas uma categoria existente da lista abaixo.
 
         Categorias disponíveis:
-        {{#each categoryGroups}}
-        - Grupo: {{name}} (id: {{id}})
-        {{#each categories}}
-          - Categoria: {{name}} (id: {{id}})
-        {{/each}}
-        {{/each}}
+        {{ "{{" }}#each categoryGroups}}
+        - Grupo: {{ "{{" }}name}} (id: {{ "{{" }}id}})
+        {{ "{{" }}#each categories}}
+          - Categoria: {{ "{{" }}name}} (id: {{ "{{" }}id}})
+        {{ "{{" }}/each}}
+        {{ "{{" }}/each}}
 
         Dados da transação:
-        - Tipo: {{type}}
-        - Valor absoluto: {{amount}}
-        - Data: {{date}}
-        - Cleared: {{cleared}}
-        - Reconciled: {{reconciled}}
-        {{#if payee}}- Payee: {{payee}}
-        {{/if}}{{#if importedPayee}}- Imported Payee: {{importedPayee}}
-        {{/if}}{{#if description}}- Descrição/Notas: {{description}}
-        {{/if}}
+        - Tipo: {{ "{{" }}type}}
+        - Valor absoluto: {{ "{{" }}amount}}
+        - Data: {{ "{{" }}date}}
+        - Cleared: {{ "{{" }}cleared}}
+        - Reconciled: {{ "{{" }}reconciled}}
+        {{ "{{" }}#if payee}}- Payee: {{ "{{" }}payee}}
+        {{ "{{" }}/if}}{{ "{{" }}#if importedPayee}}- Imported Payee: {{ "{{" }}importedPayee}}
+        {{ "{{" }}/if}}{{ "{{" }}#if description}}- Descrição/Notas: {{ "{{" }}description}}
+        {{ "{{" }}/if}}
 
     depends_on:
       - app
