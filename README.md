@@ -75,7 +75,7 @@ gemini mcp add sse pluggy-mcp http://localhost:3002/sse
 
 O serviço `actual_ai` usa o [actual-ai](https://github.com/sakowicz/actual-ai) para classificar transações automaticamente via LLM.
 
-Importante: o `actual_ai` em si classifica transações já existentes. Se `syncAccountsBeforeClassify` estiver ativo, ele também dispara o bank sync do Actual antes de classificar; nesse modo, duplicações observadas tendem a vir da etapa de sync/importação, não do preenchimento de categoria.
+Importante: o `actual_ai` em si classifica transações já existentes. Nesta stack, o escopo de `FEATURES` ficou fixado no código para classificar sem `dryRun` e sem `syncAccountsBeforeClassify`.
 
 Configure o provedor no `actual.env`:
 
@@ -85,7 +85,7 @@ ACTUAL_AI_OPENAI_API_KEY=sk-...
 ACTUAL_AI_OPENAI_MODEL=gpt-4o-mini
 ```
 
-Para manter classificação e importação desacopladas, o default versionado deixa `syncAccountsBeforeClassify` como opt-in em `ACTUAL_AI_FEATURES`.
+Com isso, a stack deixa a classificação desacoplada da importação bancária e grava categoria de fato no orçamento.
 
 O prompt de classificação (Sardinha) já está embutido no `docker-compose.yaml` e pode ser customizado via `PROMPT_TEMPLATE`.
 

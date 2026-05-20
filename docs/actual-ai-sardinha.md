@@ -8,9 +8,10 @@ Na prática, o `actual_ai` continua sendo um classificador automático de transa
 
 ## O que foi alinhado
 
-- `dryRun` continua ativo por padrão.
 - `freeWebSearch` foi habilitado por padrão para ajudar em comerciantes ambíguos.
 - O prompt de classificação foi reescrito em português com postura conservadora.
+- O escopo de `FEATURES` foi fixado no código para classificar com escrita habilitada.
+- `syncAccountsBeforeClassify` ficou fora do escopo fixado para não misturar classificação com bank sync.
 - As tags padrão foram alinhadas para revisão humana:
   - `#sardinha-ai`
   - `#sardinha-revisar`
@@ -38,7 +39,6 @@ A configuração principal está em [docker-compose.yaml](../docker-compose.yaml
 Pontos principais:
 
 - `FEATURES`:
-  - `dryRun`
   - `classifyOnStartup`
   - `rerunMissedTransactions`
   - `freeWebSearch`
@@ -47,7 +47,7 @@ Pontos principais:
   - `ACTUAL_AI_GUESSED_TAG=#sardinha-ai`
   - `ACTUAL_AI_NOT_GUESSED_TAG=#sardinha-revisar`
 
-`syncAccountsBeforeClassify` ficou como opt-in. Ele é útil quando você quer forçar sync bancário antes da classificação, mas mistura duas responsabilidades e pode trazer duplicatas quando a integração bancária upstream já está importando lançamentos repetidos.
+`syncAccountsBeforeClassify` ficou fora do escopo fixado. A ideia é manter o `actual_ai` só na classificação, sem acoplar o fluxo a bank sync.
 
 ## Próximo passo recomendado
 

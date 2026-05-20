@@ -133,10 +133,8 @@ services:
       ACTUAL_SERVER_URL: http://app:5006
       ACTUAL_PASSWORD: ${ACTUAL_PASSWORD}
       ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
-      # Keep bank sync opt-in. This service classifies existing transactions;
-      # enabling `syncAccountsBeforeClassify` also triggers Actual bank sync,
-      # which can surface/import duplicate transactions from upstream sync.
-      FEATURES: ${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","rerunMissedTransactions","freeWebSearch"]}
+      # Fixed classification scope: write enabled, no bank sync before classify.
+      FEATURES: '["classifyOnStartup","rerunMissedTransactions","freeWebSearch"]'
       CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
       TZ: ${TZ:-America/Sao_Paulo}
 
