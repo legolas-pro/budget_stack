@@ -19,7 +19,6 @@ Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares pa
 ## Pré-requisitos
 
 - Docker com Swarm inicializado (`docker swarm init`)
-- Para o serviço `actual_bi_sync`: imagem local `actual-bi-sync:local` (ver [actual-bi-sync/](actual-bi-sync/))
 - Credenciais do [Pluggy](https://dashboard.pluggy.ai) para o serviço `pluggy-mcp`
 - Chave de API de um LLM (OpenAI, Anthropic, Groq, etc.) para o `actual_ai`
 
@@ -76,6 +75,8 @@ gemini mcp add sse pluggy-mcp http://localhost:3002/sse
 
 O serviço `actual_ai` usa o [actual-ai](https://github.com/sakowicz/actual-ai) para classificar transações automaticamente via LLM.
 
+Importante: o `actual_ai` em si classifica transações já existentes. Se `syncAccountsBeforeClassify` estiver ativo, ele também dispara o bank sync do Actual antes de classificar; nesse modo, duplicações observadas tendem a vir da etapa de sync/importação, não do preenchimento de categoria.
+
 Configure o provedor no `actual.env`:
 
 ```env
@@ -83,6 +84,8 @@ ACTUAL_AI_LLM_PROVIDER=openai          # openai | anthropic | groq | openrouter 
 ACTUAL_AI_OPENAI_API_KEY=sk-...
 ACTUAL_AI_OPENAI_MODEL=gpt-4o-mini
 ```
+
+Para manter classificação e importação desacopladas, o default versionado deixa `syncAccountsBeforeClassify` como opt-in em `ACTUAL_AI_FEATURES`.
 
 O prompt de classificação (Sardinha) já está embutido no `docker-compose.yaml` e pode ser customizado via `PROMPT_TEMPLATE`.
 

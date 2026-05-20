@@ -27,9 +27,9 @@ x-images:
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
   actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
-  actual_bi_sync: &actual_bi_sync_image ${ACTUAL_BI_SYNC_IMAGE:-actual-bi-sync:local}
+  actual_bi_sync: &actual_bi_sync_image ghcr.io/legolas-pro/actual-bi-sync:latest
   actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
-  pluggy_mcp: &pluggy_mcp_image ${PLUGGY_MCP_IMAGE:-ghcr.io/git-dinamo/pluggy-mcp:latest}
+  pluggy_mcp: &pluggy_mcp_image ghcr.io/legolas-pro/pluggy-mcp:latest
 
 services:
   # ==========================================================================
@@ -133,7 +133,10 @@ services:
       ACTUAL_SERVER_URL: http://app:5006
       ACTUAL_PASSWORD: ${ACTUAL_PASSWORD}
       ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
-      FEATURES: ${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","syncAccountsBeforeClassify","rerunMissedTransactions","freeWebSearch"]}
+      # Keep bank sync opt-in. This service classifies existing transactions;
+      # enabling `syncAccountsBeforeClassify` also triggers Actual bank sync,
+      # which can surface/import duplicate transactions from upstream sync.
+      FEATURES: ${ACTUAL_AI_FEATURES:-["dryRun","classifyOnStartup","rerunMissedTransactions","freeWebSearch"]}
       CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
       TZ: ${TZ:-America/Sao_Paulo}
 

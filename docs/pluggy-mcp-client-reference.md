@@ -8,7 +8,7 @@ Referencia para conectar clientes MCP ao servico `pluggy-mcp` publicado pela sta
 - Porta publica padrao: `3002`
 - Endpoint MCP: `http://localhost:3002/sse`
 - Healthcheck: `http://localhost:3002/health`
-- Imagem padrao: `ghcr.io/git-dinamo/pluggy-mcp:latest`
+- Imagem padrao: `ghcr.io/legolas-pro/pluggy-mcp:latest`
 
 Se a stack estiver em outro host, troque `localhost` pelo dominio ou IP publicado.
 

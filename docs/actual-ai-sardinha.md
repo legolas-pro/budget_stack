@@ -40,13 +40,14 @@ Pontos principais:
 - `FEATURES`:
   - `dryRun`
   - `classifyOnStartup`
-  - `syncAccountsBeforeClassify`
   - `rerunMissedTransactions`
   - `freeWebSearch`
 - `PROMPT_TEMPLATE`: embutido no compose para manter o comportamento versionado.
 - Tags padrão:
   - `ACTUAL_AI_GUESSED_TAG=#sardinha-ai`
   - `ACTUAL_AI_NOT_GUESSED_TAG=#sardinha-revisar`
+
+`syncAccountsBeforeClassify` ficou como opt-in. Ele é útil quando você quer forçar sync bancário antes da classificação, mas mistura duas responsabilidades e pode trazer duplicatas quando a integração bancária upstream já está importando lançamentos repetidos.
 
 ## Próximo passo recomendado
 

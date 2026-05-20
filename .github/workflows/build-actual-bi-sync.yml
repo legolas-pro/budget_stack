@@ -1,11 +1,11 @@
-name: Build and Publish Pluggy MCP
+name: Build and Publish Actual BI Sync
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'pluggy-openapis3-mcp-build/**'
-      - '.github/workflows/build-pluggy-mcp.yml'
+      - 'actual-bi-sync/**'
+      - '.github/workflows/build-actual-bi-sync.yml'
     branches:
       - main
       - master
@@ -13,9 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # A imagem será salva como ghcr.io/legolas-pro/pluggy-mcp
-  # É obrigatório que nomes de imagens Docker sejam todos em letras minúsculas.
-  IMAGE_NAME: legolas-pro/pluggy-mcp
+  IMAGE_NAME: legolas-pro/actual-bi-sync
 
 jobs:
   build-and-push:
@@ -44,15 +42,15 @@ jobs:
             type=raw,value=latest
             type=sha
           labels: |
-            org.opencontainers.image.title=pluggy-mcp
-            org.opencontainers.image.description=MCP server generated from the Pluggy OpenAPI spec
+            org.opencontainers.image.title=actual-bi-sync
+            org.opencontainers.image.description=Worker that syncs Actual HTTP API data into PostgreSQL for BI
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./pluggy-openapis3-mcp-build
-          file: ./pluggy-openapis3-mcp-build/dockerfile
+          context: ./actual-bi-sync
+          file: ./actual-bi-sync/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

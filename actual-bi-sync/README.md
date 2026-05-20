@@ -27,8 +27,8 @@ Worker Python para sincronizar dados do `actual-http-api` para PostgreSQL com:
 - `RUN_ONCE`
 - `READONLY_DB_USER` / `READONLY_DB_PASSWORD` (opcional)
 
-## Build local
+## Imagem
 
 ```bash
-docker build -t actual-bi-sync:local actual-bi-sync/
+ghcr.io/legolas-pro/actual-bi-sync:latest
 ```
