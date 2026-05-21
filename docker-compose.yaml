@@ -197,6 +197,10 @@ services:
         - Não proponha novas categorias, a menos que esse recurso esteja explicitamente habilitado fora deste prompt e seja realmente necessário.
         - Quando classificar, escolha apenas uma categoria existente da lista abaixo.
 
+        Formato de resposta OBRIGATÓRIO — JSON puro, sem texto fora do JSON, sem markdown:
+        Classificou:     {"categoryId": "uuid-exato", "category": "nome-exato", "confidence": "high", "reasoning": "motivo em uma linha"}
+        Não classificou: {}
+
         Categorias disponíveis:
         {{ "{{" }}#each categoryGroups}}
         - Grupo: {{ "{{" }}name}} (id: {{ "{{" }}id}})
