@@ -46,6 +46,8 @@ Pontos principais:
 - Tags padrão:
   - `ACTUAL_AI_GUESSED_TAG=#sardinha-ai`
   - `ACTUAL_AI_NOT_GUESSED_TAG=#sardinha-revisar`
+- Para OpenRouter, o `docker-compose.yaml` define o endpoint padrao do provider como `https://openrouter.ai/api/v1`.
+  Se esse valor efetivo ficar vazio, o SDK tenta chamar apenas `/chat/completions` e a classificacao falha antes de receber resposta do modelo.
 
 `syncAccountsBeforeClassify` ficou fora do escopo fixado. A ideia é manter o `actual_ai` só na classificação, sem acoplar o fluxo a bank sync.
 

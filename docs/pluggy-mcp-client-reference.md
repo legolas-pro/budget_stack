@@ -32,22 +32,27 @@ Resposta esperada:
 
 ## Instalacao nos clientes
 
+Execute os comandos a partir da raiz deste repositorio. Os exemplos usam escopo local/projeto para evitar configuracao global no usuario.
+
 ### Claude Code
 
 ```bash
-claude mcp add pluggy-mcp sse http://localhost:3002/sse
+claude mcp add --scope local --transport sse pluggy-mcp http://localhost:3002/sse
 ```
 
 ### Codex CLI
 
 ```bash
-codex mcp add sse pluggy-mcp http://localhost:3002/sse
+mkdir -p .codex
+CODEX_HOME="$PWD/.codex" codex mcp add pluggy-mcp --url http://localhost:3002/sse
 ```
+
+Ao iniciar o Codex para este projeto, use o mesmo `CODEX_HOME="$PWD/.codex"` para carregar esse MCP local.
 
 ### Gemini CLI
 
 ```bash
-gemini mcp add sse pluggy-mcp http://localhost:3002/sse
+gemini mcp add --scope project --transport sse pluggy-mcp http://localhost:3002/sse
 ```
 
 ## Exemplo remoto
@@ -55,9 +60,10 @@ gemini mcp add sse pluggy-mcp http://localhost:3002/sse
 Se o servico estiver exposto externamente:
 
 ```bash
-claude mcp add pluggy-mcp sse https://SEU-DOMINIO/pluggy/sse
-codex mcp add sse pluggy-mcp https://SEU-DOMINIO/pluggy/sse
-gemini mcp add sse pluggy-mcp https://SEU-DOMINIO/pluggy/sse
+claude mcp add --scope local --transport sse pluggy-mcp https://SEU-DOMINIO/pluggy/sse
+mkdir -p .codex
+CODEX_HOME="$PWD/.codex" codex mcp add pluggy-mcp --url https://SEU-DOMINIO/pluggy/sse
+gemini mcp add --scope project --transport sse pluggy-mcp https://SEU-DOMINIO/pluggy/sse
 ```
 
 Mantenha o path `/sse`. O servidor atual nao usa `streamableHttp` nem `/mcp`.

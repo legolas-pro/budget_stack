@@ -3,6 +3,7 @@ actual.env
 .env.local
 .env.*.local
 pluggy-openapis3-mcp-build/src/.env
+.codex/
 
 __pycache__/
 *.pyc

@@ -50,25 +50,30 @@ docker stack rm actual_budget
 
 Os servidores MCP rodam via SSE. Referência completa: [docs/pluggy-mcp-client-reference.md](docs/pluggy-mcp-client-reference.md)
 
+Execute os comandos a partir da raiz deste repositorio. Os exemplos abaixo usam escopo local/projeto, sem gravar os MCPs na configuracao global do usuario.
+
 ### Claude Code
 
 ```bash
-claude mcp add actual-mcp sse http://localhost:3001/sse
-claude mcp add pluggy-mcp sse http://localhost:3002/sse
+claude mcp add --scope local --transport sse actual-mcp http://localhost:3001/sse
+claude mcp add --scope local --transport sse pluggy-mcp http://localhost:3002/sse
 ```
 
 ### Codex
 
 ```bash
-codex mcp add sse actual-mcp http://localhost:3001/sse
-codex mcp add sse pluggy-mcp http://localhost:3002/sse
+mkdir -p .codex
+CODEX_HOME="$PWD/.codex" codex mcp add actual-mcp --url http://localhost:3001/sse
+CODEX_HOME="$PWD/.codex" codex mcp add pluggy-mcp --url http://localhost:3002/sse
 ```
+
+Ao iniciar o Codex para este projeto, use o mesmo `CODEX_HOME="$PWD/.codex"` para carregar esses MCPs locais.
 
 ### Gemini CLI
 
 ```bash
-gemini mcp add sse actual-mcp http://localhost:3001/sse
-gemini mcp add sse pluggy-mcp http://localhost:3002/sse
+gemini mcp add --scope project --transport sse actual-mcp http://localhost:3001/sse
+gemini mcp add --scope project --transport sse pluggy-mcp http://localhost:3002/sse
 ```
 
 ## Classificação automática com IA (Actual AI)
