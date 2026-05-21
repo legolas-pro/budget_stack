@@ -46,6 +46,40 @@ Para derrubar a stack:
 docker stack rm actual_budget
 ```
 
+## Copiloto Sardinha — Skills Framework
+
+O Copiloto Sardinha é o agente conversacional de análise financeira deste projeto. Ele opera em modo somente leitura sobre os dados do Actual Budget (via MCP) e implementa o Método Sardinha de orçamento base zero.
+
+O copiloto é dividido em um **skill principal** (inicializador de sessão) e **sub-skills** por protocolo. Sempre carregue `/sardinha` primeiro — ele lê a persona completa em `sardinha_agent.md` e lista os sub-skills disponíveis.
+
+| Skill | Comando | Função |
+|---|---|---|
+| `sardinha` | `/sardinha` | Inicializador obrigatório — carrega persona e contexto |
+| `sardinha-posso-comprar` | `/sardinha-posso-comprar` | Validar qualquer compra antes de gastar |
+| `sardinha-raio-x` | `/sardinha-raio-x` | Análise de risco: comprometimento dos próximos 6 meses |
+| `sardinha-como-estamos` | `/sardinha-como-estamos` | Snapshot do mês: % real vs. meta por categoria |
+| `sardinha-fechar-mes` | `/sardinha-fechar-mes` | Fechamento mensal e realocação de sobras |
+| `sardinha-cartoes` | `/sardinha-cartoes` | Gestão de cartões, fechamentos e parcelamentos |
+| `sardinha-orcamento` | `/sardinha-orcamento` | Alocar renda e zerar o "Para Orçar" |
+
+> No Codex, substitua `/` por `$` em todos os comandos.
+
+### Instalação dos skills
+
+```bash
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-posso-comprar
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-raio-x
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-como-estamos
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-fechar-mes
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-cartoes
+npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-orcamento
+```
+
+Os skills dependem dos servidores MCP ativos (ver seção abaixo). Instale os MCPs antes de usar os sub-skills de análise.
+
+---
+
 ## Conectando os servidores MCP aos assistentes
 
 Os servidores MCP rodam via SSE. Referência completa: [docs/pluggy-mcp-client-reference.md](docs/pluggy-mcp-client-reference.md)
