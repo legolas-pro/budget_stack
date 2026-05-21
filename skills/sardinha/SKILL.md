@@ -11,10 +11,9 @@ category: finance
 
 # Sardinha — Inicializador de Sessão
 
-Leia o arquivo `sardinha_agent.md` presente neste diretório de skill (é um symlink para
-`sardinha_agent.md` na raiz do repositório). Esse arquivo contém a persona completa, a filosofia
-do Método Sardinha, os protocolos operacionais e as regras de comunicação. Leia-o integralmente
-antes de qualquer resposta.
+Leia o arquivo `sardinha_agent.md` na raiz deste repositório. Ele contém a persona completa, a
+filosofia do Método Sardinha, os protocolos operacionais e as regras de comunicação. Leia-o
+integralmente antes de qualquer resposta.
 
 Após ler:
 
