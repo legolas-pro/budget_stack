@@ -182,44 +182,40 @@ services:
       REQUESTS_PER_MINUTE: ${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
       TOKENS_PER_MINUTE: ${ACTUAL_AI_TOKENS_PER_MINUTE:-}
       PROMPT_TEMPLATE: |-
-        Você é o classificador Sardinha do Actual Budget.
+        Categorize the following bank transaction. Be conservative: it is better NOT to categorize than to categorize incorrectly.
 
-        FORMATO DE SAÍDA OBRIGATÓRIO — responda SOMENTE com JSON válido, sem nenhum texto antes ou depois, sem markdown, sem explicações fora do JSON:
-        Classificou:     {"categoryId": "uuid-exato", "category": "nome-exato", "confidence": "high", "reasoning": "motivo em uma linha"}
-        Não classificou: {}
+        Rules:
+        - Give high weight to payee and importedPayee; use description/notes as supporting context only.
+        - Prioritize consistency: if the same payee was categorized before, maintain that category.
+        - If the transaction is an installment (parcelada), ambiguous, a transfer, credit card payment, fee, chargeback, or refund, require HIGH confidence before classifying.
+        - If there is material doubt between similar categories, do NOT classify.
+        - Do not suggest new categories.
 
-        Todo raciocínio deve ir dentro do campo "reasoning". Nada fora do JSON.
+        Transaction details:
+        * Amount: {{ "{{" }}amount}}
+        * Type: {{ "{{" }}type}}
+        {{ "{{" }}#if description}}* Description: {{ "{{" }}description}}{{ "{{" }}/if}}
+        {{ "{{" }}#if payee}}* Payee: {{ "{{" }}payee}}{{ "{{" }}^}}* Payee: {{ "{{" }}importedPayee}}{{ "{{" }}/if}}
+        {{ "{{" }}#if date}}* Date: {{ "{{" }}date}}{{ "{{" }}/if}}
 
-        Regras de classificação:
-        - Seja conservador. É melhor não classificar do que classificar errado.
-        - Use exatamente os nomes e IDs das categorias cadastradas no orçamento.
-        - Priorize consistência e repetibilidade. Se o mesmo comerciante normalmente cairia na mesma categoria, preserve isso.
-        - Dê peso alto para importedPayee e payee. Use description/notas apenas como apoio.
-        - Se a transação for parcelada, ambígua, transferência, pagamento de cartão, tarifa, estorno ou reembolso, exija confiança alta antes de classificar.
-        - Se houver dúvida entre categorias parecidas, prefira não classificar.
-        - Não invente contexto que não esteja nos dados ou na busca web.
-        - Use busca web apenas como apoio para identificar o comerciante; nunca trate a busca como verdade absoluta.
-        - Não proponha novas categorias.
-        - Escolha apenas uma categoria existente da lista abaixo.
-
-        Categorias disponíveis:
+        Existing categories by group:
         {{ "{{" }}#each categoryGroups}}
-        - Grupo: {{ "{{" }}name}} (id: {{ "{{" }}id}})
+        GROUP: {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
         {{ "{{" }}#each categories}}
-          - Categoria: {{ "{{" }}name}} (id: {{ "{{" }}id}})
+        * {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
         {{ "{{" }}/each}}
         {{ "{{" }}/each}}
 
-        Dados da transação:
-        - Tipo: {{ "{{" }}type}}
-        - Valor absoluto: {{ "{{" }}amount}}
-        - Data: {{ "{{" }}date}}
-        - Cleared: {{ "{{" }}cleared}}
-        - Reconciled: {{ "{{" }}reconciled}}
-        {{ "{{" }}#if payee}}- Payee: {{ "{{" }}payee}}
-        {{ "{{" }}/if}}{{ "{{" }}#if importedPayee}}- Imported Payee: {{ "{{" }}importedPayee}}
-        {{ "{{" }}/if}}{{ "{{" }}#if description}}- Descrição/Notas: {{ "{{" }}description}}
-        {{ "{{" }}/if}}
+        IMPORTANT: Respond with ONLY a valid JSON object. No text before or after. No markdown. No explanations outside the JSON.
+
+        To classify:      {"type": "existing", "categoryId": "exact-uuid"}
+        To skip:          {"type": "rule", "ruleName": "leave uncategorized"}
+
+        Examples:
+        {"type": "existing", "categoryId": "abc123"}
+        {"type": "rule", "ruleName": "leave uncategorized"}
+
+        {{ "{{" }}#if hasWebSearchTool}}You can use the web search tool to find more information about the transaction.{{ "{{" }}/if}}
 
     depends_on:
       - app
