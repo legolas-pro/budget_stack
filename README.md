@@ -82,33 +82,60 @@ Os skills dependem dos servidores MCP ativos (ver seção abaixo). Instale os MC
 
 ## Conectando os servidores MCP aos assistentes
 
-Os servidores MCP rodam via SSE. Referência completa: [docs/pluggy-mcp-client-reference.md](docs/pluggy-mcp-client-reference.md)
+Os servidores MCP rodam via SSE e expõem dados financeiros sensíveis. No README principal, o caminho recomendado é conectar em modo **somente leitura**, principalmente para Antigravity.
 
-Execute os comandos a partir da raiz deste repositorio. Os exemplos abaixo usam escopo local/projeto, sem gravar os MCPs na configuracao global do usuario.
+> [!CAUTION]
+> O `actual_mcp` desta stack pode expor tools de escrita quando iniciado com `--enable-write`. O `disabledTools` abaixo reduz a superfície disponível no Antigravity, mas a garantia forte de read-only é rodar o `actual_mcp` sem `--enable-write` ou publicar um endpoint separado só para leitura.
 
-### Claude Code
+### Antigravity (read-only recomendado)
 
-```bash
-claude mcp add --scope local --transport sse actual-mcp http://localhost:3001/sse
-claude mcp add --scope local --transport sse pluggy-mcp http://localhost:3002/sse
+No Antigravity, abra `MCP Servers` > `Manage MCP Servers` > `View raw config` e mescle o bloco abaixo em `~/.gemini/antigravity/mcp_config.json`.
+
+```json
+{
+  "mcpServers": {
+    "actual-mcp": {
+      "serverUrl": "http://localhost:3001/sse",
+      "headers": {
+        "Authorization": "Bearer SEU_ACTUAL_API_KEY"
+      },
+      "disabledTools": [
+        "create-transaction",
+        "update-transaction",
+        "delete-transaction",
+        "create-category",
+        "update-category",
+        "delete-category",
+        "create-category-group",
+        "update-category-group",
+        "delete-category-group",
+        "create-payee",
+        "update-payee",
+        "delete-payee",
+        "create-rule",
+        "update-rule",
+        "delete-rule"
+      ]
+    },
+    "pluggy-mcp": {
+      "serverUrl": "http://localhost:3002/sse"
+    }
+  }
+}
 ```
 
-### Codex
+Depois de salvar, atualize/reinicie a lista de MCPs no Antigravity e confirme que os dois servidores aparecem como conectados.
 
-```bash
-mkdir -p .codex
-CODEX_HOME="$PWD/.codex" codex mcp add actual-mcp --url http://localhost:3001/sse
-CODEX_HOME="$PWD/.codex" codex mcp add pluggy-mcp --url http://localhost:3002/sse
-```
+> [!TIP]
+> O `pluggy-mcp` já é somente leitura no código atual (`listConnectors`, `getAccounts`, `getTransactions`). O bloqueio acima é especialmente importante para o `actual-mcp`.
 
-Ao iniciar o Codex para este projeto, use o mesmo `CODEX_HOME="$PWD/.codex"` para carregar esses MCPs locais.
+### Outros clientes
 
-### Gemini CLI
+Para integrar sem a camada read-only do exemplo acima, ou para usar clientes como Codex, Claude Code e Gemini CLI, leia a documentação da pasta [`docs/`](docs/):
 
-```bash
-gemini mcp add --scope project --transport sse actual-mcp http://localhost:3001/sse
-gemini mcp add --scope project --transport sse pluggy-mcp http://localhost:3002/sse
-```
+- [Referência de conexão do Pluggy MCP](docs/pluggy-mcp-client-reference.md)
+- [Briefing de tools MCP para agente financeiro](docs/briefing-agente-mcp-financas.md)
+- [Contexto operacional para Antigravity](antigravity.md)
 
 ## Classificação automática com IA (Actual AI)
 
@@ -135,7 +162,3 @@ O `actual_bi_sync` puxa dados da REST API do Actual e faz upsert no PostgreSQL a
 ## Variáveis de ambiente
 
 Consulte [`actual.env.example`](actual.env.example) para a lista completa e documentada de todas as variáveis disponíveis.
-
-## Licença
-
-[MIT](LICENSE)
