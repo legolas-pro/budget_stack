@@ -44,15 +44,15 @@ O Copiloto Sardinha é o agente conversacional de análise financeira. Opera em 
 | `sardinha-cartoes` | `/sardinha-cartoes` | Gestão de cartões, fechamentos e parcelamentos |
 | `sardinha-orcamento` | `/sardinha-orcamento` | Alocar renda, zerar o "Para Orçar" |
 
-Instalação dos skills:
+Instalação dos skills de cliente (`client/skills/`; as skills internas do repo ficam em `.agents/skills/`):
 ```bash
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-posso-comprar
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-raio-x
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-como-estamos
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-fechar-mes
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-cartoes
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-orcamento
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-posso-comprar
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-raio-x
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-como-estamos
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-fechar-mes
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-cartoes
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-orcamento
 ```
 
 ---

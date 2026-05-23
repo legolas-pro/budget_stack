@@ -66,14 +66,16 @@ O copiloto é dividido em um **skill principal** (inicializador de sessão) e **
 
 ### Instalação dos skills
 
+As skills abaixo são para o usuário final do Budget Stack e ficam em `client/skills/`. As skills internas para manutenção deste repositório ficam em `.agents/skills/` e não fazem parte da instalação do cliente.
+
 ```bash
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-posso-comprar
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-raio-x
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-como-estamos
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-fechar-mes
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-cartoes
-npx skills add legolas-pro/budget_stack --skill-path skills/sardinha-orcamento
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-posso-comprar
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-raio-x
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-como-estamos
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-fechar-mes
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-cartoes
+npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-orcamento
 ```
 
 Os skills dependem dos servidores MCP ativos (ver seção abaixo). Instale os MCPs antes de usar os sub-skills de análise.

@@ -16,7 +16,7 @@ O agente conversacional deste projeto é o Copiloto Sardinha. Ele opera em modo 
 | `$sardinha-cartoes` | Gestão de cartões e parcelamentos |
 | `$sardinha-orcamento` | Alocar renda e zerar o "Para Orçar" |
 
-A persona completa está em `sardinha_agent.md` na raiz do repositório. Os skills estão em `skills/`.
+A persona completa está em `sardinha_agent.md` na raiz do repositório. Os skills de cliente estão em `client/skills/`.
 
 Os MCPs necessários para os skills de análise:
 ```bash

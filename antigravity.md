@@ -58,7 +58,7 @@ A persona completa (filosofia, protocolos, abordagem psicológica) está em `sar
 | `sardinha-cartoes` | `/sardinha-cartoes` | `$sardinha-cartoes` | Cartões de crédito: fechamentos, parcelamentos, ilusão do limite |
 | `sardinha-orcamento` | `/sardinha-orcamento` | `$sardinha-orcamento` | Alocar renda, zerar o "Para Orçar" (To Be Budgeted) |
 
-Os skills estão em `skills/`. O skill `sardinha` usa `skills/sardinha/sardinha_agent.md` (symlink para `sardinha_agent.md` na raiz).
+Os skills de cliente estão em `client/skills/`. As skills internas para edição e manutenção deste repositório ficam em `.agents/skills/`.
 
 ### Distribuição Sardinha — referência rápida
 
@@ -194,14 +194,15 @@ budget_stack/
 ├── sardinha_agent.md            # persona completa do Copiloto Sardinha
 ├── antigravity.md               # este arquivo — briefing operacional completo
 ├── codex.md                     # contexto para Codex CLI
-├── skills/                      # skills para Claude Code / Codex / Antigravity
-│   ├── sardinha/                # inicializador (symlink → sardinha_agent.md)
-│   ├── sardinha-posso-comprar/
-│   ├── sardinha-raio-x/
-│   ├── sardinha-como-estamos/
-│   ├── sardinha-fechar-mes/
-│   ├── sardinha-cartoes/
-│   └── sardinha-orcamento/
+├── client/
+│   └── skills/                  # skills de cliente para Claude Code / Codex / Antigravity
+│       ├── sardinha/            # inicializador
+│       ├── sardinha-posso-comprar/
+│       ├── sardinha-raio-x/
+│       ├── sardinha-como-estamos/
+│       ├── sardinha-fechar-mes/
+│       ├── sardinha-cartoes/
+│       └── sardinha-orcamento/
 ├── docs/
 │   ├── WORKFLOW.md              # git workflow e deploy
 │   ├── actual-ai-sardinha.md    # integração actual_ai + Sardinha
