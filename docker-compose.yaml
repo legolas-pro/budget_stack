@@ -271,6 +271,7 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
+        window: 120s
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${ACTUAL_BI_DB_USER:-actual_bi} -d ${ACTUAL_BI_DB_NAME:-actual_bi}"]
@@ -346,6 +347,7 @@ services:
         condition: on-failure
         delay: 10s
         max_attempts: 5
+        window: 120s
 
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/actual_bi_sync_last_success"]
