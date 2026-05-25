@@ -11,8 +11,6 @@ version: "3.7"
 #   - actual_ai   -> Classificação com LLM / automações      sem porta pública
 #   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
 #   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
-#   - actual_mcp         -> Model Context Protocol (SSE)     host: ${ACTUAL_MCP_PORT:-3001}
-#   - pluggy_mcp         -> MCP Open Finance                 host: ${PLUGGY_MCP_PORT:-3002}
 #
 # DEPLOY:
 #   docker stack deploy -c docker-compose.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
@@ -28,8 +26,6 @@ x-images:
   actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ghcr.io/legolas-pro/actual-bi-sync:latest
-  actual_mcp: &actual_mcp_image ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
-  pluggy_mcp: &pluggy_mcp_image ghcr.io/legolas-pro/pluggy-mcp:latest
 
 services:
   # ==========================================================================
@@ -357,94 +353,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 45s
-
-  # ==========================================================================
-  # ACTUAL MCP - Model Context Protocol Server (SSE)
-  # ==========================================================================
-  actual_mcp:
-    image: ${ACTUAL_MCP_IMAGE:-sstefanov/actual-mcp:latest}
-    networks:
-      - actual_internal
-
-    ports:
-      - "${ACTUAL_MCP_PORT:-3001}:3000"
-
-    environment:
-      - ACTUAL_SERVER_URL=http://app:5006
-      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
-      - BEARER_TOKEN=${ACTUAL_API_KEY}
-      - TZ=America/Sao_Paulo
-
-    command: ["--sse", "--enable-write", "--enable-bearer", "--port", "3000"]
-
-    depends_on:
-      - app
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-
-  # ==========================================================================
-  # PLUGGY MCP - Integração Model Context Protocol com Open Finance
-  # ==========================================================================
-  pluggy-mcp:
-    # Atenção: docker stack deploy ignora `build`, a imagem deve ser construída antes
-    # ou use docker-compose para ambiente de dev.
-    image: *pluggy_mcp_image
-    ports:
-      # Host 3002 -> container 3000 (a imagem expõe SSE em /sse na porta 3000)
-      - "${PLUGGY_MCP_PORT:-3002}:3000"
-    networks:
-      - actual_internal
-
-    environment:
-      # A imagem gerada espera API_KEY_DEFAULT para aplicar o header X-API-KEY.
-      - API_KEY_DEFAULT=${PLUGGY_API_KEY}
-      # Opcional: mantidas para referencia operacional / geracao manual de nova API key.
-      # Obtenha em: https://dashboard.pluggy.ai > Aplicações
-      - PLUGGY_CLIENT_ID=${PLUGGY_CLIENT_ID}
-      - PLUGGY_CLIENT_SECRET=${PLUGGY_CLIENT_SECRET}
-      - TZ=${TZ:-America/Sao_Paulo}
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.05"
-          memory: 64M
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
 
 # ============================================================================
 # VOLUMES
