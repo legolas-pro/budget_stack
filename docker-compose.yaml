@@ -349,10 +349,10 @@ services:
 
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/actual_bi_sync_last_success"]
-      interval: 30s
+      interval: 60s
       timeout: 10s
-      retries: 5
-      start_period: 45s
+      retries: 3
+      start_period: 10m
 
 # ============================================================================
 # VOLUMES
