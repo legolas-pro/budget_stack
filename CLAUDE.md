@@ -44,39 +44,27 @@ O Copiloto Sardinha é o agente conversacional de análise financeira. Opera em 
 | `sardinha-cartoes` | `/sardinha-cartoes` | Gestão de cartões, fechamentos e parcelamentos |
 | `sardinha-orcamento` | `/sardinha-orcamento` | Alocar renda, zerar o "Para Orçar" |
 
-Instalação dos skills de cliente (`client/skills/`; as skills internas do repo ficam em `.agents/skills/`):
+Instalação (skills em `.agents/skills/`):
 ```bash
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-posso-comprar
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-raio-x
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-como-estamos
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-fechar-mes
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-cartoes
-npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-orcamento
+npx skills add legolas-pro/budget_stack
+# Selecione as sardinha-* no menu interativo
 ```
 
 ---
 
-## MCPs — Conexão
+## Acesso a dados — Skills Sardinha
 
+Os skills operam via REST API (Actual Budget) e PostgreSQL (BI). Nenhum MCP necessário.
+
+Configure as variáveis no shell do cliente:
 ```bash
-claude mcp add --scope local --transport sse actual-mcp http://localhost:3001/sse
-claude mcp add --scope local --transport sse pluggy-mcp http://localhost:3002/sse
+export ACTUAL_API_KEY="sua-api-key"
+export ACTUAL_BUDGET_SYNC_ID="seu-sync-id"
 ```
-
-**actual-mcp:** catálogo de tools descoberto em runtime via `tools/list`. Escrita possível — aplicar dupla confirmação para operações críticas (transações, contas, orçamentos).
-
-**pluggy-mcp:** tools de leitura (`listConnectors`, `getAccounts`, `getTransactions`). Código em `pluggy-openapis3-mcp-build/src/src/index.ts`.
-
----
-
-## Protocolo de uso dos MCPs
 
 - Valores monetários: inteiros em centavos. `-5000` = -R$50,00. Despesas negativas, receitas positivas.
 - Datas: sempre `YYYY-MM-DD`.
-- Tools de escrita crítica (transações, contas, orçamentos): confirmar 2 vezes antes de executar.
-- Após escrita: executar leitura de verificação e mostrar antes/depois.
-- Em falha de escrita: não fazer retry cego — parar e solicitar decisão.
+- API endpoint: `http://127.0.0.1:5007/v1` (use `--ipv4` no curl — `localhost` pode resolver para IPv6)
 
 ---
 
