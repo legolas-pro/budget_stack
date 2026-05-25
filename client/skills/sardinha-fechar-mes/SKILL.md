@@ -11,43 +11,68 @@ category: finance
 
 > Assume que `/sardinha` está carregado e a persona está ativa.
 
-## Passos
+## 1 — Buscar dados do mês que fechou (UMA chamada)
 
-1. **Busque via MCP** os dados finais do mês:
-   - Balance (Saldo) e Activity (Movimentação) de todas as categorias
-   - Net Worth (Patrimônio Líquido) atual
+Substitua `YYYY-MM` pelo mês sendo fechado (ex: `2026-04` para abril):
 
-2. **Separe em dois grupos**:
-   - **Sobras** (Balance positivo): categorias que terminaram com saldo
-   - **Déficits** (Balance negativo ou Activity > Budgeted): categorias que estouraram
+```bash
+MES="YYYY-MM"
+curl -s --ipv4 -H "x-api-key: $ACTUAL_API_KEY" \
+  "http://127.0.0.1:5007/v1/budgets/$ACTUAL_BUDGET_SYNC_ID/months/$MES" \
+| jq -r '
+  .data |
+  "Renda:\(.totalIncome) | Gasto:\(.totalSpent) | Saldo:\(.totalBalance)\n---",
+  (.categoryGroups[] |
+    "[\(.name)]",
+    (.categories[] | select(.hidden==false) |
+      "  \(.name): orç=\(.budgeted) gasto=\(.spent) saldo=\(.balance)"
+    )
+  )
+'
+```
 
-3. **Para as sobras**:
-   Sugira realocação prioritária:
-   1. Primeiro: completar Liberdade Financeira até 25% se não atingida
-   2. Segundo: reforçar Metas do ano se aplicável
-   3. Terceiro: guardar como reserva para o próximo mês na mesma categoria
-   Instrua o usuário a fazer a transferência manualmente no Actual.
+> Todos os valores em **centavos** — divida por 100 para exibir em R$.
 
-4. **Para os déficits**:
-   - Identifique a causa provável (gasto pontual, recorrente, imprevisto)
-   - Registre o aprendizado sem julgamento: *"[Categoria] estourou R$ [X]. O que aconteceu neste mês foi [causa]. No próximo mês, [ajuste sugerido]."*
-   - Nunca atribua culpa — categorias estouraram porque o orçamento foi aprendendo.
+Se o usuário não informar o mês, use o mês anterior: substitua `$MES` por `$(date -d "last month" +%Y-%m)` (Linux) ou `$(date -v-1m +%Y-%m)` (macOS).
 
-5. **Gere o resumo verbal do mês**:
-   ```
-   Fechamento de [Mês/Ano]:
-   → Necessidades:         [%] (meta: 40%)   [✅ dentro / ⚠️ acima]
-   → Conforto:             [%] (meta: 20%)   [✅ / ⚠️]
-   → Liberdade Financeira: [%] (meta: 25%)   [✅ / ⚠️]
-   → Metas:                [%] (meta: 5%)    [✅ / ⚠️]
-   → Prazeres:             [%] (meta: 5%)    [✅ / ⚠️]
-   → Net Worth:            R$ [X]            [↑ cresceu / ↓ recuou]
-   ```
+## 2 — Separar sobras e déficits
 
-6. **Comemore um marco** se houver (primeiro mês dentro das metas, Net Worth crescendo, Liberdade Financeira mantida em mês apertado). Seja genuíno — não force se o mês foi difícil.
+- **Sobras**: categorias com `saldo > 0`
+- **Déficits**: categorias com `saldo < 0` ou `gasto > orçado`
+
+## 3 — Para as sobras — sugerir realocação
+
+Prioridade de realocação:
+1. Completar Liberdade Financeira até 25% da renda, se não atingida
+2. Reforçar Metas do ano
+3. Reserva na mesma categoria para o próximo mês
+
+Instrua o usuário a fazer a transferência manualmente no Actual.
+
+## 4 — Para os déficits — registrar o aprendizado
+
+*"[Categoria] estourou R$X. O que aconteceu: [causa]. Ajuste sugerido para o próximo mês: [ação]."*
+
+Nunca atribua culpa — categorias estouraram porque o orçamento estava aprendendo.
+
+## 5 — Resumo verbal do mês
+
+```
+Fechamento de [Mês/Ano]:
+→ Necessidades:         Z% (meta: 40%)   [✅ / ⚠️]
+→ Conforto:             Z% (meta: 20%)   [✅ / ⚠️]
+→ Liberdade Financeira: Z% (meta: 25%)   [✅ / ⚠️]
+→ Metas:                Z% (meta: 5%)    [✅ / ⚠️]
+→ Prazeres:             Z% (meta: 5%)    [✅ / ⚠️]
+→ Saldo do mês:         R$X              [↑ positivo / ↓ negativo]
+```
+
+## 6 — Comemore se houver marco
+
+Primeiro mês dentro das metas, Liberdade Financeira mantida em mês apertado, etc. Seja genuíno — não force se o mês foi difícil.
 
 ## Regras de comunicação
 
 - Erros do mês são dados históricos, não falhas morais.
-- Se o Net Worth cresceu, mostre antes dos déficits.
-- O fechamento é retrospectivo — não use para gerar ansiedade, use para gerar aprendizado.
+- Se o saldo do mês foi positivo, mostre antes dos déficits.
+- O fechamento é retrospectivo — use para gerar aprendizado, não ansiedade.

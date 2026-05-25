@@ -11,35 +11,65 @@ category: finance
 
 > Assume que `/sardinha` está carregado e a persona está ativa.
 
-## Passos
+## 1 — Buscar dados (UMA chamada)
 
-1. **Busque via MCP** para o mês corrente:
-   - Saldo (Balance) e Movimentação (Activity) de todas as categorias
-   - Valor do "To Be Budgeted" (Para Orçar)
+```bash
+curl -s --ipv4 -H "x-api-key: $ACTUAL_API_KEY" \
+  "http://127.0.0.1:5007/v1/budgets/$ACTUAL_BUDGET_SYNC_ID/months/$(date +%Y-%m)" \
+| jq -r '
+  .data |
+  "TBB:\(.toBudget//0) | Renda:\(.totalIncome) | Gasto:\(.totalSpent)\n---",
+  (.categoryGroups[] |
+    "[\(.name)]",
+    (.categories[] | select(.hidden==false) |
+      "  \(.name): orç=\(.budgeted) gasto=\(.spent) saldo=\(.balance)"
+    )
+  )
+'
+```
 
-2. **Calcule o % real de cada categoria** sobre a renda (solicite a renda se não estiver no contexto).
+> Todos os valores em **centavos** — divida por 100 para exibir em R$.
 
-3. **Monte o snapshot** comparando real vs. meta da Distribuição Sardinha:
+## 2 — Calcular e montar o snapshot
 
-   ```
-   Necessidades:         R$ [X] de R$ [Y] orçados  →  [%] real vs. 40% meta
-   Conforto:             R$ [X] de R$ [Y] orçados  →  [%] real vs. 20% meta
-   Liberdade Financeira: R$ [X] de R$ [Y] orçados  →  [%] real vs. 25% meta
-   Metas:                R$ [X] de R$ [Y] orçados  →  [%] real vs. 5% meta
-   Prazeres:             R$ [X] de R$ [Y] orçados  →  [%] real vs. 5% meta
-   ```
+Com a renda do mês (peça ao usuário se `Renda` for zero), calcule o **% real** de cada grupo Sardinha vs. a meta:
 
-4. **Destaque os alertas** (sem julgamento):
-   - Categoria acima da meta → *"[Categoria] precisa de atenção: [X]% vs meta de [Y]%"*
-   - Prazeres zerado → alerta especial: zerar Prazeres compromete o comportamento de longo prazo
-   - Liberdade Financeira abaixo de 15% → Quest pausada
+| Grupo | Meta |
+|---|---|
+| Necessidades | 40% |
+| Conforto | 20% |
+| Liberdade Financeira | 25% |
+| Conhecimento / Metas | 5% |
+| Prazeres | 5% |
 
-5. **Projeção de fechamento**: com base no ritmo de gasto atual (Activity / dias passados × dias do mês), projete onde cada categoria vai fechar.
+Agrupe as categorias nos grupos conforme os nomes no orçamento do usuário.
 
-6. **Feche com uma frase de reforço positivo** se houver algo a comemorar. Se o momento for de tensão, omita o reforço e ofereça: *"Quer ver como ajustar o restante do mês?"*
+Formato de saída:
+```
+Necessidades:         R$X de R$Y orçados  →  Z% real (meta 40%)
+Conforto:             ...
+Liberdade Financeira: ...
+Metas:                ...
+Prazeres:             ...
+```
+
+## 3 — Destacar alertas (máx. 3)
+
+- Categoria acima da meta → *"[Categoria] precisa de atenção: X% vs meta Y%"*
+- Prazeres zerado → alerta especial
+- Liberdade Financeira < 15% → Quest pausada
+- TBB positivo → ofereça alocação imediata antes de fechar o snapshot
+
+## 4 — Projeção de fechamento
+
+Com base em `gasto / dias_passados × dias_do_mês`, projete onde cada grupo vai fechar.
+
+## 5 — Fechamento
+
+Comemore algo concreto se houver. Se o momento for tenso, omita o reforço e ofereça ajuste.
 
 ## Regras de comunicação
 
-- Máximo de 3 alertas por vez — mais que isso causa sobrecarga cognitiva.
-- Se o usuário estiver em modo emocional (sinais no texto), mostre apenas o positivo primeiro.
-- "Para Orçar" positivo → ofereça alocação imediata antes de fechar o snapshot.
+- Máximo 3 alertas por vez.
+- Usuário em modo emocional → mostre o positivo primeiro.
+- TBB positivo → proponha alocação antes de encerrar.

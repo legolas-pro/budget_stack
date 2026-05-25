@@ -17,8 +17,7 @@ category: finance
 
 O cartão de crédito é um **caminhão de transporte**: ele move dinheiro, não cria dinheiro.
 Se o armazém (a categoria no Actual) está vazio, o caminhão não sai — independente do limite
-que o banco exibe. O limite do banco é irrelevante para o método. O único número que importa
-é o saldo da categoria.
+que o banco exibe. O único número que importa é o saldo da categoria.
 
 Sempre que o usuário citar limite do banco para justificar uma compra:
 > *"Esquece o limite do banco por um segundo. Qual é o saldo da categoria no Actual?"*
@@ -27,36 +26,53 @@ Sempre que o usuário citar limite do banco para justificar uma compra:
 
 ## Protocolo: Compra em Cartão
 
-1. **Pergunte o dia de fechamento do cartão** se não estiver no contexto.
-   - Fechamento em ≤ 5 dias: a compra impacta o orçamento **deste mês**, não do próximo.
-   - Fechamento em > 5 dias: impacta o **próximo mês**.
+**Passo 1 — Pergunte o dia de fechamento do cartão** se não estiver no contexto:
+- Fechamento em ≤ 5 dias: a compra impacta **este mês**
+- Fechamento em > 5 dias: impacta o **próximo mês**
 
-2. **Identifique a categoria** que pagará esta compra.
+**Passo 2 — Identifique a categoria** que pagará esta compra.
 
-3. **Consulte via MCP** o saldo da categoria.
+**Passo 3 — Buscar saldo da categoria:**
+```bash
+curl -s --ipv4 -H "x-api-key: $ACTUAL_API_KEY" \
+  "http://127.0.0.1:5007/v1/budgets/$ACTUAL_BUDGET_SYNC_ID/months/$(date +%Y-%m)" \
+| jq -r '.data.categoryGroups[].categories[] | select(.hidden==false) | "\(.name): saldo=\(.balance)"'
+```
 
-4. **Decida e oriente** (igual ao protocolo Posso Comprar?).
+> Valores em **centavos**.
+
+**Passo 4 — Decidir e orientar** (igual ao protocolo Posso Comprar?).
 
 ---
 
 ## Protocolo: Compra Parcelada em Cartão
 
-1. Identifique: valor total, número de parcelas, valor de cada parcela, cartão.
-2. Consulte via MCP os Schedules futuros da categoria nos próximos 3 meses.
-3. Verifique: `parcelas_existentes + novas_parcelas ≤ 5% da renda mensal`?
-4. Se aprovado: instrua o usuário a criar um **Schedule** no Actual para cada parcela futura.
-   - Name: `[Nome do produto] — parcela X/Y`
-   - Account: o cartão usado
-   - Category: a categoria correta
-   - Date: data prevista de fechamento de cada fatura
-5. Se bloqueado: explique o número concreto do comprometimento. Ofereça alternativas (menos parcelas, aguardar, outra categoria).
+**Passo 1** — Colete: valor total, número de parcelas, valor de cada parcela, cartão.
+
+**Passo 2 — Buscar agendamentos futuros da categoria (próximos 3 meses):**
+```bash
+docker exec $(docker ps -q -f name=actual-budget_actual_bi_postgres) \
+  psql -U actual_bi -d actual_bi -tA \
+  -c "SELECT to_char(next_date,'YYYY-MM-DD'), name, amount FROM actual_active_schedules WHERE next_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 months' ORDER BY next_date" 2>/dev/null
+```
+
+Identifique os agendamentos da categoria em questão pelo nome.
+
+**Passo 3** — Verifique: `parcelas_existentes + novas_parcelas ≤ 5% da renda mensal`?
+
+**Passo 4 — Se aprovado:** instrua o usuário a criar um **Schedule** no Actual para cada parcela futura:
+- Name: `[Produto] — parcela X/Y`
+- Account: o cartão usado
+- Category: a categoria correta
+- Date: data prevista de fechamento de cada fatura
+
+**Passo 5 — Se bloqueado:** explique o número concreto do comprometimento. Ofereça alternativas (menos parcelas, aguardar, outra categoria).
 
 ---
 
 ## Estado Atual — Pontos de Evolução
 
-> Esta seção documenta os comportamentos conhecidos do Actual Budget com cartões,
-> para guiar futuras versões deste skill.
+> Esta seção documenta comportamentos conhecidos do Actual Budget com cartões.
 
 - O Actual Budget tem lógica própria para transações de cartão (payment accounts vs. budget accounts).
 - Compras em cartão no Actual podem gerar uma "To Pay" entry — verificar se está sendo gerada corretamente.
@@ -69,4 +85,5 @@ Sempre que o usuário citar limite do banco para justificar uma compra:
 
 - Nunca use o limite do banco como referência de capacidade financeira.
 - Parcelamento não é "dividir o impacto" — é antecipar renda futura. Deixe isso claro.
-- Data de fechamento é crítica — pergunte sempre antes de dar qualquer orientação sobre compra em cartão.
+- Data de fechamento é crítica — pergunte sempre antes de orientar sobre compra em cartão.
+- Traduza centavos para R$ em toda resposta ao usuário.

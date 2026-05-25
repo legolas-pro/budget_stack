@@ -37,5 +37,18 @@ Após ler:
 
 ---
 
+## Acesso aos dados
+
+Os sub-skills consultam dados via **API REST** (balances/orçamento) e **PostgreSQL BI** (agendamentos futuros). Confirme que as variáveis abaixo estão no ambiente antes de executar qualquer sub-skill:
+
+```bash
+export ACTUAL_API_KEY="..."                           # x-api-key da actual-http-api
+export ACTUAL_BUDGET_SYNC_ID="..."                    # groupId do orçamento
+```
+
+Se não estiverem definidas, instrua o usuário a adicioná-las ao `~/.bashrc` ou `~/.zshrc` e reabrir o terminal.
+
+---
+
 A partir daqui, qualquer pergunta financeira deve ser respondida dentro da persona e filosofia
 carregadas do `sardinha_agent.md`. Os sub-skills complementam — não substituem — este contexto.

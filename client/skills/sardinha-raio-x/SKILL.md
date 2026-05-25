@@ -11,38 +11,57 @@ category: finance
 
 > Assume que `/sardinha` está carregado e a persona está ativa.
 
-## Passos
+## 1 — Buscar agendamentos dos próximos 6 meses (Postgres)
 
-1. **Busque via MCP** todos os Schedules (Agendamentos) dos próximos 6 meses.
+```bash
+docker exec $(docker ps -q -f name=actual-budget_actual_bi_postgres) \
+  psql -U actual_bi -d actual_bi -tA \
+  -c "SELECT to_char(next_date,'YYYY-MM'), name, amount FROM actual_active_schedules WHERE next_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '6 months' ORDER BY next_date" 2>/dev/null
+```
 
-2. **Agrupe por categoria** e some o valor total comprometido em cada uma.
+> Valores em **centavos** — divida por 100 para exibir em R$.
+> Agendamentos negativos = despesas. Positivos = receitas.
 
-3. **Solicite a renda média mensal** se não estiver disponível no contexto da sessão.
+## 2 — Buscar estado atual do mês (API)
 
-4. **Calcule os percentuais reais** de cada categoria vs. a Distribuição Sardinha:
-   - Necessidades: meta máx 40%
-   - Conforto: meta máx 20%
-   - Liberdade Financeira: meta 25%
-   - Conhecimento: meta 5%
-   - Metas: meta 5%
-   - Prazeres: meta 5%
+```bash
+curl -s --ipv4 -H "x-api-key: $ACTUAL_API_KEY" \
+  "http://127.0.0.1:5007/v1/budgets/$ACTUAL_BUDGET_SYNC_ID/months/$(date +%Y-%m)" \
+| jq -r '"Renda:\(.data.totalIncome) | TBB:\(.data.toBudget//0)"'
+```
 
-5. **Verifique o teto crítico**: Necessidades + Conforto ≤ 60% da renda?
+## 3 — Solicitar renda média mensal
 
-6. **Emita o parecer**:
+Se `Renda = 0` ou o usuário preferir usar uma referência fixa, pergunte a renda líquida mensal.
 
-   | Cor | Condição |
-   |---|---|
-   | 🟢 VERDE | Todos os tetos respeitados. Liberdade Financeira ≥ 15%. |
-   | 🟡 AMARELO | Algum teto próximo do limite, ou Liberdade Financeira entre 10–15%. |
-   | 🔴 VERMELHO | Necessidades + Conforto > 60%, ou Liberdade Financeira < 10%, ou TBB negativo. |
+## 4 — Agrupar agendamentos por mês e por categoria Sardinha
 
-7. **Para cada mês dos 6 analisados**, destaque os meses com pico de comprometimento (o "Boss do Mês").
+Para cada um dos 6 meses seguintes:
+- Some os agendamentos por grupo Sardinha (inferindo pelo nome da categoria no agendamento)
+- Calcule `comprometimento_mês / renda × 100`
 
-8. **Sugira um único ajuste** concreto se o resultado for AMARELO ou VERMELHO. Nunca liste mais de 3 ações simultâneas.
+## 5 — Verificar teto crítico
+
+`Necessidades + Conforto ≤ 60% da renda`?
+
+## 6 — Emitir o parecer
+
+| Cor | Condição |
+|---|---|
+| 🟢 VERDE | Todos os tetos respeitados. Liberdade Financeira ≥ 15%. |
+| 🟡 AMARELO | Algum teto próximo do limite, ou Liberdade Financeira entre 10–15%. |
+| 🔴 VERMELHO | Necessidades + Conforto > 60%, ou Liberdade Financeira < 10%, ou TBB negativo. |
+
+## 7 — Destacar o "Boss do Mês"
+
+Para cada mês dos 6 analisados, destaque o mês com maior pico de comprometimento.
+
+## 8 — Sugerir UM ajuste concreto
+
+Se AMARELO ou VERMELHO, sugira no máximo 1 ação. Nunca liste mais de 3 ações simultâneas.
 
 ## Regras de comunicação
 
-- Apresente os números por mês, não só o total — o impacto temporal é o que o usuário precisa ver.
-- Transforme todo percentual em R$: *"40% da renda = R$ [X]/mês"*.
-- Tom factual, sem alarme desnecessário. VERMELHO = urgente, mas sem pânico.
+- Apresente os números por mês, não só o total — o impacto temporal é o que importa.
+- Transforme todo percentual em R$: *"40% da renda = R$X/mês"*.
+- VERMELHO = urgente, mas sem pânico.
