@@ -131,7 +131,8 @@ services:
       ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
       # Fixed classification scope: write enabled, no bank sync before classify.
       FEATURES: '["classifyOnStartup","rerunMissedTransactions","freeWebSearch"]'
-      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
+      # Offset de 30min: bi_sync roda no início de cada janela de 6h, AI classifica depois.
+      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-30 */6 * * *}
       TZ: ${TZ:-America/Sao_Paulo}
 
       # Provedor
@@ -216,6 +217,22 @@ services:
     depends_on:
       - app
 
+    # Healthcheck: falha se o lock do actual-ai existir há mais de 7h (classificação travada).
+    # O Swarm reinicia o container automaticamente quando unhealthy.
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - |
+          LOCKDIR=/tmp/actual-ai
+          if [ ! -d "$LOCKDIR" ]; then exit 0; fi
+          AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKDIR") ))
+          if [ "$AGE" -gt 25200 ]; then exit 1; fi
+          exit 0
+      interval: 30m
+      timeout: 10s
+      retries: 2
+      start_period: 10m
+
     deploy:
       mode: replicated
       replicas: 1
@@ -230,9 +247,10 @@ services:
           cpus: "0.1"
           memory: 128M
       restart_policy:
-        condition: on-failure
+        condition: any
         delay: 10s
-        max_attempts: 5
+        max_attempts: 10
+        window: 60s
 
   # ==========================================================================
   # ACTUAL BI POSTGRES - Banco relacional para BI e conexao direta
@@ -318,8 +336,8 @@ services:
       - READONLY_DB_USER=${ACTUAL_BI_READONLY_DB_USER:-}
       - READONLY_DB_PASSWORD=${ACTUAL_BI_READONLY_DB_PASSWORD:-}
 
-      # Worker
-      - SYNC_INTERVAL_SECONDS=${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}
+      # Worker: intervalo alinhado ao ciclo do actual_ai (6h) para evitar sobreposição.
+      - SYNC_INTERVAL_SECONDS=${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-21600}
       - RUN_ONCE=${ACTUAL_BI_SYNC_RUN_ONCE:-false}
       - LOG_LEVEL=${ACTUAL_BI_SYNC_LOG_LEVEL:-INFO}
       - HEALTH_SUCCESS_FILE=/tmp/actual_bi_sync_last_success
