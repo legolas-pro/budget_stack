@@ -2,7 +2,7 @@ version: "3.7"
 
 # ============================================================================
 # STACK: Actual Budget - Orçamento Pessoal
-# VERSÃO: 1.4
+# VERSÃO: 1.5
 # ============================================================================
 #
 # SERVIÇOS ATIVOS:
@@ -11,6 +11,8 @@ version: "3.7"
 #   - actual_ai   -> Classificação com LLM / automações      sem porta pública
 #   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
 #   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
+#   - metabase              → Metabase BI Dashboard               host: ${METABASE_PORT:-3000}
+#   - metabase_postgres     → PostgreSQL para metadados Metabase  sem porta pública
 #
 # DEPLOY:
 #   docker stack deploy -c docker-compose.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
@@ -26,6 +28,8 @@ x-images:
   actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
   actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
   actual_bi_sync: &actual_bi_sync_image ghcr.io/legolas-pro/actual-bi-sync:latest
+  metabase: &metabase_image metabase/metabase:latest
+  metabase_postgres: &metabase_postgres_image postgres:16-alpine
 
 services:
   # ==========================================================================
@@ -374,6 +378,94 @@ services:
       retries: 3
       start_period: 10m
 
+  # ==========================================================================
+  # METABASE POSTGRES - Metadados internos (dashboards, perguntas, coleções)
+  # ==========================================================================
+  metabase_postgres:
+    image: *metabase_postgres_image
+    networks:
+      - actual_internal
+    environment:
+      - POSTGRES_DB=${METABASE_DB_NAME:-metabaseappdb}
+      - POSTGRES_USER=${METABASE_DB_USER:-metabase}
+      - POSTGRES_PASSWORD=${METABASE_DB_PASSWORD}
+      - TZ=America/Sao_Paulo
+    volumes:
+      - metabase_postgres_data:/var/lib/postgresql/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${METABASE_DB_USER:-metabase} -d ${METABASE_DB_NAME:-metabaseappdb}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ==========================================================================
+  # METABASE - BI Dashboard
+  # https://www.metabase.com/docs/latest/
+  # ==========================================================================
+  metabase:
+    image: *metabase_image
+    networks:
+      - actual_internal
+      - actual_egress
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=${METABASE_DB_NAME:-metabaseappdb}
+      - MB_DB_PORT=5432
+      - MB_DB_USER=${METABASE_DB_USER:-metabase}
+      - MB_DB_PASS=${METABASE_DB_PASSWORD}
+      - MB_DB_HOST=${STACK_PREFIX:-actual_budget}_metabase_postgres
+      - MB_ENCRYPTION_SECRET_KEY=${METABASE_ENCRYPTION_SECRET_KEY}
+      - MB_SITE_URL=${METABASE_SITE_URL:-http://localhost:3000}
+      - MB_JETTY_PORT=3000
+      - JAVA_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+    depends_on:
+      - metabase_postgres
+      - actual_bi_postgres
+    deploy:
+      mode: replicated
+      replicas: 0
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
 # ============================================================================
 # VOLUMES
 # ============================================================================
@@ -382,6 +474,8 @@ volumes:
     driver: local
   actual_bi_postgres_data:
     name: ${ACTUAL_BI_POSTGRES_DATA_VOLUME_NAME:-actual_bi_postgres_data}
+  metabase_postgres_data:
+    name: ${METABASE_POSTGRES_DATA_VOLUME_NAME:-metabase_postgres_data}
 
 # ============================================================================
 # NETWORKS
