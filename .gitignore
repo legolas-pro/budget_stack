@@ -7,3 +7,4 @@ pluggy-openapis3-mcp-build/src/.env
 
 __pycache__/
 *.pyc
+*.dump
