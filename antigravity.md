@@ -6,27 +6,22 @@ Compilado de contexto, arquitetura e entendimentos deste repositório para uso c
 
 ## 1. O que é este projeto
 
-Stack Docker Swarm para orçamento pessoal com IA, BI e integração Open Finance. Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares para:
+Stack Docker Swarm enxuta para orçamento pessoal com IA. Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares para:
 
+- REST API para automações e integrações (`api`)
 - Classificação automática de transações via LLM (`actual_ai`)
-- Sincronização para PostgreSQL para análise BI (`actual_bi_sync`)
-- Servidores MCP para integração com assistentes de IA (`actual_mcp`, `pluggy-mcp`)
 
 O orçamento segue o **Método Sardinha** (orçamento base zero com distribuição por categorias). A persona e filosofia completa estão em `sardinha_agent.md`.
 
 ---
 
-## 2. Arquitetura — Serviços
+## 2. Arquitetura — Serviços da Stack
 
 | Serviço | Imagem | Porta | Função |
 |---|---|---|---|
 | `app` | `actualbudget/actual-server` | `5006` | Actual Budget UI e backend |
 | `api` | `jhonderson/actual-http-api` | `5007` | REST API para Actual Budget |
 | `actual_ai` | `sakowicz/actual-ai` | — | Classificação automática de transações via LLM |
-| `actual_bi_postgres` | `postgres` | `55432` | PostgreSQL para análise BI |
-| `actual_bi_sync` | `ghcr.io/legolas-pro/actual-bi-sync` | — | Worker: sincroniza API → PostgreSQL a cada N segundos |
-| `actual_mcp` | imagem externa | `3001` | MCP Server (SSE) para Actual Budget |
-| `pluggy-mcp` | `ghcr.io/legolas-pro/pluggy-mcp` | `3002` | MCP Server (SSE) para Open Finance via Pluggy |
 
 **Deploy:**
 ```bash
@@ -73,7 +68,9 @@ Os skills de cliente estão em `client/skills/`. As skills internas para ediçã
 
 ---
 
-## 4. MCPs Disponíveis
+## 4. MCPs Opcionais Externos
+
+Os MCPs abaixo não fazem parte da stack enxuta em `docker-compose.yaml`. Use esta seção apenas se eles estiverem publicados separadamente.
 
 ### actual-mcp (porta 3001)
 
@@ -166,15 +163,7 @@ O prompt de classificação (postura Sardinha: conservador, sem chute, apenas ca
 
 ---
 
-## 7. Serviço actual_bi_sync
-
-Worker que puxa dados da REST API do Actual e faz upsert no PostgreSQL a cada `ACTUAL_BI_SYNC_INTERVAL_SECONDS` (padrão: 300s).
-
-Conecte qualquer ferramenta de BI (Metabase, Grafana, etc.) diretamente na porta `55432`.
-
----
-
-## 8. Entendimentos Técnicos Consolidados
+## 7. Entendimentos Técnicos Consolidados
 
 - O controle efetivo das variáveis de ambiente da stack é feito via **Portainer**. `actual.env.example` não é a fonte de verdade do ambiente implantado.
 - O `actual_ai` classifica transações existentes atualizando `category` e `notes`. Não cria transações novas.
@@ -185,7 +174,7 @@ Conecte qualquer ferramenta de BI (Metabase, Grafana, etc.) diretamente na porta
 
 ---
 
-## 9. Estrutura do Repositório
+## 8. Estrutura do Repositório
 
 ```
 budget_stack/
@@ -213,7 +202,7 @@ budget_stack/
 
 ---
 
-## 10. Workflow Git
+## 9. Workflow Git
 
 - `main` → produção
 - `develop` → staging

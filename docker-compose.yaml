@@ -9,10 +9,6 @@ version: "3.7"
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
 #   - actual_ai   -> Classificação com LLM / automações      sem porta pública
-#   - actual_bi_postgres -> Banco relacional BI              host: ${ACTUAL_BI_POSTGRES_PORT:-55432}
-#   - actual_bi_sync     -> Upsert API -> Postgres           interval: ${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-300}s
-#   - metabase              → Metabase BI Dashboard               host: ${METABASE_PORT:-3000}
-#   - metabase_postgres     → PostgreSQL para metadados Metabase  sem porta pública
 #
 # DEPLOY:
 #   docker stack deploy -c docker-compose.yaml ${STACK_PREFIX:-actual_budget} --env-file actual.env
@@ -26,10 +22,6 @@ x-images:
   actual: &actual_image actualbudget/actual-server:latest
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
   actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
-  actual_bi_postgres: &actual_bi_postgres_image ${ACTUAL_BI_POSTGRES_IMAGE:-postgres:16-alpine}
-  actual_bi_sync: &actual_bi_sync_image ghcr.io/legolas-pro/actual-bi-sync:latest
-  metabase: &metabase_image metabase/metabase:latest
-  metabase_postgres: &metabase_postgres_image postgres:16-alpine
 
 services:
   # ==========================================================================
@@ -135,8 +127,8 @@ services:
       ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
       # Fixed classification scope: write enabled, no bank sync before classify.
       FEATURES: '["classifyOnStartup","rerunMissedTransactions","freeWebSearch"]'
-      # Offset de 30min: bi_sync roda no início de cada janela de 6h, AI classifica depois.
-      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-30 */6 * * *}
+      # Agenda padrão: roda a classificação a cada 6 horas.
+      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
       TZ: ${TZ:-America/Sao_Paulo}
 
       # Provedor
@@ -228,9 +220,9 @@ services:
         - "CMD-SHELL"
         - |
           LOCKDIR=/tmp/actual-ai
-          if [ ! -d "$LOCKDIR" ]; then exit 0; fi
-          AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKDIR") ))
-          if [ "$AGE" -gt 25200 ]; then exit 1; fi
+          if [ ! -d "$$LOCKDIR" ]; then exit 0; fi
+          AGE=$$(( $$(date +%s) - $$(stat -c %Y "$$LOCKDIR") ))
+          if [ "$$AGE" -gt 25200 ]; then exit 1; fi
           exit 0
       interval: 30m
       timeout: 10s
@@ -256,226 +248,12 @@ services:
         max_attempts: 10
         window: 60s
 
-  # ==========================================================================
-  # ACTUAL BI POSTGRES - Banco relacional para BI e conexao direta
-  # ==========================================================================
-  actual_bi_postgres:
-    image: *actual_bi_postgres_image
-    networks:
-      - actual_internal
-
-    ports:
-      - "${ACTUAL_BI_POSTGRES_PORT:-55432}:5432"
-
-    environment:
-      - POSTGRES_DB=${ACTUAL_BI_DB_NAME:-actual_bi}
-      - POSTGRES_USER=${ACTUAL_BI_DB_USER:-actual_bi}
-      - POSTGRES_PASSWORD=${ACTUAL_BI_DB_PASSWORD}
-      - TZ=America/Sao_Paulo
-
-    volumes:
-      - actual_bi_postgres_data:/var/lib/postgresql/data
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-        window: 120s
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${ACTUAL_BI_DB_USER:-actual_bi} -d ${ACTUAL_BI_DB_NAME:-actual_bi}"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  # ==========================================================================
-  # ACTUAL BI SYNC - Worker conservador (Actual API -> PostgreSQL)
-  # ==========================================================================
-  actual_bi_sync:
-    image: *actual_bi_sync_image
-    networks:
-      - actual_internal
-
-    environment:
-      # Origem: API do proprio serviço Actual nesta stack
-      - ACTUAL_HTTP_API_BASE_URL=${ACTUAL_HTTP_API_BASE_URL:-http://api:5007/v1}
-      - ACTUAL_HTTP_API_KEY=${ACTUAL_API_KEY}
-      - ACTUAL_HTTP_TIMEOUT_SECONDS=${ACTUAL_HTTP_TIMEOUT_SECONDS:-30}
-      - ACTUAL_HTTP_VERIFY_SSL=${ACTUAL_HTTP_VERIFY_SSL:-true}
-      - ACTUAL_HTTP_RETRIES=${ACTUAL_HTTP_RETRIES:-3}
-      - ACTUAL_HTTP_BACKOFF_SECONDS=${ACTUAL_HTTP_BACKOFF_SECONDS:-2}
-
-      # Escopo de ingestao
-      - ACTUAL_BI_ENDPOINTS=${ACTUAL_BI_ENDPOINTS:-accounts,transactions,payees,categories,categorygroups,schedules}
-      - ACTUAL_BUDGET_SYNC_ID=${ACTUAL_BUDGET_SYNC_ID}
-      - ACTUAL_BI_TRANSACTIONS_SINCE_DATE=${ACTUAL_BI_TRANSACTIONS_SINCE_DATE:-2000-01-01}
-      - ACTUAL_BI_TRANSACTIONS_UNTIL_DATE=${ACTUAL_BI_TRANSACTIONS_UNTIL_DATE:-}
-      - ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS=${ACTUAL_BI_REQUIRE_NON_EMPTY_BUDGETS:-true}
-      - ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR=${ACTUAL_BI_FAIL_ON_ENDPOINT_ERROR:-true}
-
-      # Destino: PostgreSQL
-      - DB_HOST=${STACK_PREFIX:-actual_budget}_actual_bi_postgres
-      - DB_PORT=5432
-      - DB_NAME=${ACTUAL_BI_DB_NAME:-actual_bi}
-      - DB_USER=${ACTUAL_BI_DB_USER:-actual_bi}
-      - DB_PASSWORD=${ACTUAL_BI_DB_PASSWORD}
-      - DB_SSLMODE=${ACTUAL_BI_DB_SSLMODE:-disable}
-      - DB_CONNECT_TIMEOUT_SECONDS=${ACTUAL_BI_DB_CONNECT_TIMEOUT_SECONDS:-10}
-
-      # Usuario read-only para conexao direta (opcional)
-      - READONLY_DB_USER=${ACTUAL_BI_READONLY_DB_USER:-}
-      - READONLY_DB_PASSWORD=${ACTUAL_BI_READONLY_DB_PASSWORD:-}
-
-      # Worker: intervalo alinhado ao ciclo do actual_ai (6h) para evitar sobreposição.
-      - SYNC_INTERVAL_SECONDS=${ACTUAL_BI_SYNC_INTERVAL_SECONDS:-21600}
-      - RUN_ONCE=${ACTUAL_BI_SYNC_RUN_ONCE:-false}
-      - LOG_LEVEL=${ACTUAL_BI_SYNC_LOG_LEVEL:-INFO}
-      - HEALTH_SUCCESS_FILE=/tmp/actual_bi_sync_last_success
-      - HEALTH_ERROR_FILE=/tmp/actual_bi_sync_last_error
-      - TZ=America/Sao_Paulo
-
-    depends_on:
-      - api
-      - actual_bi_postgres
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/actual_bi_sync_last_success"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 10m
-
-  # ==========================================================================
-  # METABASE POSTGRES - Metadados internos (dashboards, perguntas, coleções)
-  # ==========================================================================
-  metabase_postgres:
-    image: *metabase_postgres_image
-    networks:
-      - actual_internal
-    environment:
-      - POSTGRES_DB=${METABASE_DB_NAME:-metabaseappdb}
-      - POSTGRES_USER=${METABASE_DB_USER:-metabase}
-      - POSTGRES_PASSWORD=${METABASE_DB_PASSWORD}
-      - TZ=America/Sao_Paulo
-    volumes:
-      - metabase_postgres_data:/var/lib/postgresql/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 64M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${METABASE_DB_USER:-metabase} -d ${METABASE_DB_NAME:-metabaseappdb}"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  # ==========================================================================
-  # METABASE - BI Dashboard
-  # https://www.metabase.com/docs/latest/
-  # ==========================================================================
-  metabase:
-    image: *metabase_image
-    networks:
-      - actual_internal
-      - actual_egress
-    ports:
-      - "${METABASE_PORT:-3000}:3000"
-    environment:
-      - MB_DB_TYPE=postgres
-      - MB_DB_DBNAME=${METABASE_DB_NAME:-metabaseappdb}
-      - MB_DB_PORT=5432
-      - MB_DB_USER=${METABASE_DB_USER:-metabase}
-      - MB_DB_PASS=${METABASE_DB_PASSWORD}
-      - MB_DB_HOST=${STACK_PREFIX:-actual_budget}_metabase_postgres
-      - MB_ENCRYPTION_SECRET_KEY=${METABASE_ENCRYPTION_SECRET_KEY}
-      - MB_SITE_URL=${METABASE_SITE_URL:-http://localhost:3000}
-      - MB_JETTY_PORT=3000
-      - JAVA_TIMEZONE=America/Sao_Paulo
-      - TZ=America/Sao_Paulo
-    depends_on:
-      - metabase_postgres
-      - actual_bi_postgres
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 2G
-        reservations:
-          cpus: "0.25"
-          memory: 1G
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-
 # ============================================================================
 # VOLUMES
 # ============================================================================
 volumes:
   actual_data:
     driver: local
-  actual_bi_postgres_data:
-    name: ${ACTUAL_BI_POSTGRES_DATA_VOLUME_NAME:-actual_bi_postgres_data}
-  metabase_postgres_data:
-    name: ${METABASE_POSTGRES_DATA_VOLUME_NAME:-metabase_postgres_data}
 
 # ============================================================================
 # NETWORKS

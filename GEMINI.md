@@ -6,7 +6,7 @@ Compilado de contexto, arquitetura e entendimentos deste repositório.
 
 ## O que é este projeto
 
-Stack Docker Swarm para orçamento pessoal com IA, BI e integração Open Finance. Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares para classificação automática de transações via LLM, sincronização para PostgreSQL para análise BI, e servidores MCP para integração com assistentes de IA.
+Stack Docker Swarm enxuta para orçamento pessoal com IA. Combina o [Actual Budget](https://actualbudget.org/) com uma REST API auxiliar e classificação automática de transações via LLM.
 
 O orçamento segue o **Método Sardinha** (orçamento base zero com distribuição por categorias). A persona e filosofia completa estão em `sardinha_agent.md`.
 
@@ -19,10 +19,6 @@ O orçamento segue o **Método Sardinha** (orçamento base zero com distribuiç�
 | `app` | `5006` | Actual Budget UI e backend |
 | `api` | `5007` | REST API para Actual Budget |
 | `actual_ai` | — | Classificação automática de transações via LLM |
-| `actual_bi_postgres` | `55432` | PostgreSQL para análise BI |
-| `actual_bi_sync` | — | Worker: sincroniza API → PostgreSQL |
-| `actual_mcp` | `3001` | MCP Server SSE para Actual Budget |
-| `pluggy-mcp` | `3002` | MCP Server SSE para Open Finance via Pluggy |
 
 Variáveis de ambiente controladas via Portainer. `actual.env.example` é o template de referência — não é a fonte de verdade do ambiente implantado.
 

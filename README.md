@@ -1,8 +1,8 @@
 # Budget Stack
 
-Stack Docker Swarm para orçamento pessoal com IA, BI e integração Open Finance.
+Stack Docker Swarm enxuta para orçamento pessoal com IA.
 
-Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares para classificação automática de transações via LLM, sincronização para PostgreSQL para análise BI, e servidores MCP para integração com assistentes de IA.
+Combina o [Actual Budget](https://actualbudget.org/) com uma REST API auxiliar e classificação automática de transações via LLM.
 
 ## Arquitetura
 
@@ -11,15 +11,10 @@ Combina o [Actual Budget](https://actualbudget.org/) com serviços auxiliares pa
 | `app` | Actual Budget UI | `5006` |
 | `api` | REST API ([actual-http-api](https://github.com/jhonderson/actual-http-api)) | `5007` |
 | `actual_ai` | Classificação automática de transações via LLM | — |
-| `actual_bi_postgres` | PostgreSQL para análise BI | `55432` |
-| `actual_bi_sync` | Worker de sincronização API → PostgreSQL | — |
-| `actual_mcp` | MCP Server para Actual Budget (SSE) | `3001` |
-| `pluggy-mcp` | MCP Server para Open Finance via Pluggy (SSE) | `3002` |
 
 ## Pré-requisitos
 
 - Docker com Swarm inicializado (`docker swarm init`)
-- Credenciais do [Pluggy](https://dashboard.pluggy.ai) para o serviço `pluggy-mcp`
 - Chave de API de um LLM (OpenAI, Anthropic, Groq, etc.) para o `actual_ai`
 
 ## Configuração
@@ -78,16 +73,16 @@ npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-cart
 npx skills add legolas-pro/budget_stack --skill-path client/skills/sardinha-orcamento
 ```
 
-Os skills dependem dos servidores MCP ativos (ver seção abaixo). Instale os MCPs antes de usar os sub-skills de análise.
+Alguns skills dependem de servidores MCP externos à stack enxuta. Configure esses MCPs separadamente antes de usar os sub-skills de análise.
 
 ---
 
 ## Conectando os servidores MCP aos assistentes
 
-Os servidores MCP rodam via SSE e expõem dados financeiros sensíveis. No README principal, o caminho recomendado é conectar em modo **somente leitura**, principalmente para Antigravity.
+Se você mantiver servidores MCP separados via SSE, eles expõem dados financeiros sensíveis. O caminho recomendado é conectar em modo **somente leitura**, principalmente para Antigravity.
 
 > [!CAUTION]
-> O `actual_mcp` desta stack pode expor tools de escrita quando iniciado com `--enable-write`. O `disabledTools` abaixo reduz a superfície disponível no Antigravity, mas a garantia forte de read-only é rodar o `actual_mcp` sem `--enable-write` ou publicar um endpoint separado só para leitura.
+> O `actual_mcp` pode expor tools de escrita quando iniciado com `--enable-write`. O `disabledTools` abaixo reduz a superfície disponível no Antigravity, mas a garantia forte de read-only é rodar o `actual_mcp` sem `--enable-write` ou publicar um endpoint separado só para leitura.
 
 ### Antigravity (read-only recomendado)
 
@@ -156,10 +151,6 @@ ACTUAL_AI_OPENAI_MODEL=gpt-4o-mini
 Com isso, a stack deixa a classificação desacoplada da importação bancária e grava categoria de fato no orçamento.
 
 O prompt de classificação (Sardinha) já está embutido no `docker-compose.yaml` e pode ser customizado via `PROMPT_TEMPLATE`.
-
-## Sincronização BI
-
-O `actual_bi_sync` puxa dados da REST API do Actual e faz upsert no PostgreSQL a cada `ACTUAL_BI_SYNC_INTERVAL_SECONDS` (padrão: 300s). Conecte qualquer ferramenta de BI (Metabase, Grafana, etc.) diretamente na porta `55432`.
 
 ## Variáveis de ambiente
 
