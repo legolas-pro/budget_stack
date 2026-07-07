@@ -8,6 +8,8 @@ version: "3.7"
 # SERVIÇOS ATIVOS:
 #   - app         → Actual Budget UI (Node.js/SQLite)       host: ${ACTUAL_PORT:-5006}
 #   - api         → REST API (jhonderson/actual-http-api)   host: ${ACTUAL_API_PORT:-5007}
+#
+# SERVIÇOS DESATIVADOS:
 #   - actual_ai   -> Classificação com LLM / automações      sem porta pública
 #
 # DEPLOY:
@@ -21,7 +23,7 @@ version: "3.7"
 x-images:
   actual: &actual_image actualbudget/actual-server:latest
   actual_http_api: &actual_http_api_image jhonderson/actual-http-api:latest
-  actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
+  # actual_ai: &actual_ai_image ${ACTUAL_AI_IMAGE:-docker.io/sakowicz/actual-ai:latest}
 
 services:
   # ==========================================================================
@@ -115,138 +117,138 @@ services:
   # ACTUAL AI - Classificação automática com LLM
   # https://github.com/sakowicz/actual-ai
   # ==========================================================================
-  actual_ai:
-    image: *actual_ai_image
-    networks:
-      - actual_internal
-      - actual_egress
-
-    environment:
-      ACTUAL_SERVER_URL: http://app:5006
-      ACTUAL_PASSWORD: ${ACTUAL_PASSWORD}
-      ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
-      # Fixed classification scope: write enabled, no bank sync before classify.
-      FEATURES: '["classifyOnStartup","rerunMissedTransactions","freeWebSearch"]'
-      # Agenda padrão: roda a classificação a cada 6 horas.
-      CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
-      TZ: ${TZ:-America/Sao_Paulo}
-
-      # Provedor
-      LLM_PROVIDER: ${ACTUAL_AI_LLM_PROVIDER:-openai}
-
-      # OpenAI / OpenAI-compatible
-      OPENAI_API_KEY: ${ACTUAL_AI_OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${ACTUAL_AI_OPENAI_MODEL:-}
-      OPENAI_BASE_URL: ${ACTUAL_AI_OPENAI_BASE_URL:-}
-
-      # Anthropic
-      ANTHROPIC_API_KEY: ${ACTUAL_AI_ANTHROPIC_API_KEY:-}
-      ANTHROPIC_MODEL: ${ACTUAL_AI_ANTHROPIC_MODEL:-}
-      ANTHROPIC_BASE_URL: ${ACTUAL_AI_ANTHROPIC_BASE_URL:-}
-
-      # Groq
-      GROQ_API_KEY: ${ACTUAL_AI_GROQ_API_KEY:-}
-      GROQ_MODEL: ${ACTUAL_AI_GROQ_MODEL:-}
-      GROQ_BASE_URL: ${ACTUAL_AI_GROQ_BASE_URL:-}
-
-      # OpenRouter
-      OPENROUTER_API_KEY: ${ACTUAL_AI_OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${ACTUAL_AI_OPENROUTER_MODEL:-}
-      OPENROUTER_BASE_URL: ${ACTUAL_AI_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      OPENROUTER_REFERRER: ${ACTUAL_AI_OPENROUTER_REFERRER:-}
-      OPENROUTER_TITLE: ${ACTUAL_AI_OPENROUTER_TITLE:-actual-ai}
-      OPENROUTER_ENABLE_TOOL_CALLING: ${ACTUAL_AI_OPENROUTER_ENABLE_TOOL_CALLING:-false}
-
-      # Google Gemini
-      GOOGLE_GENERATIVE_AI_API_KEY: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_API_KEY:-}
-      GOOGLE_GENERATIVE_AI_MODEL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_MODEL:-}
-      GOOGLE_GENERATIVE_AI_BASE_URL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_BASE_URL:-}
-
-      # Ollama
-      OLLAMA_MODEL: ${ACTUAL_AI_OLLAMA_MODEL:-}
-      OLLAMA_BASE_URL: ${ACTUAL_AI_OLLAMA_BASE_URL:-}
-
-      # Recursos opcionais
-      VALUESERP_API_KEY: ${ACTUAL_AI_VALUESERP_API_KEY:-}
-      ACTUAL_E2E_PASSWORD: ${ACTUAL_AI_ACTUAL_E2E_PASSWORD:-}
-      NODE_TLS_REJECT_UNAUTHORIZED: ${ACTUAL_AI_NODE_TLS_REJECT_UNAUTHORIZED:-}
-      NOT_GUESSED_TAG: ${ACTUAL_AI_NOT_GUESSED_TAG:-#sardinha-revisar}
-      GUESSED_TAG: ${ACTUAL_AI_GUESSED_TAG:-#sardinha-ai}
-      REQUESTS_PER_MINUTE: ${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
-      TOKENS_PER_MINUTE: ${ACTUAL_AI_TOKENS_PER_MINUTE:-}
-      PROMPT_TEMPLATE: |-
-        Categorize the following bank transaction. Be conservative: it is better NOT to categorize than to categorize incorrectly.
-
-        Rules:
-        - Give high weight to payee and importedPayee; use description/notes as supporting context only.
-        - Prioritize consistency: if the same payee was categorized before, maintain that category.
-        - If the transaction is an installment (parcelada), ambiguous, a transfer, credit card payment, fee, chargeback, or refund, require HIGH confidence before classifying.
-        - If there is material doubt between similar categories, do NOT classify.
-        - Do not suggest new categories.
-
-        Transaction details:
-        * Amount: {{ "{{" }}amount}}
-        * Type: {{ "{{" }}type}}
-        {{ "{{" }}#if description}}* Description: {{ "{{" }}description}}{{ "{{" }}/if}}
-        {{ "{{" }}#if payee}}* Payee: {{ "{{" }}payee}}{{ "{{" }}^}}* Payee: {{ "{{" }}importedPayee}}{{ "{{" }}/if}}
-        {{ "{{" }}#if date}}* Date: {{ "{{" }}date}}{{ "{{" }}/if}}
-
-        Existing categories by group:
-        {{ "{{" }}#each categoryGroups}}
-        GROUP: {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
-        {{ "{{" }}#each categories}}
-        * {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
-        {{ "{{" }}/each}}
-        {{ "{{" }}/each}}
-
-        IMPORTANT: Respond with ONLY a valid JSON object. No text before or after. No markdown. No explanations outside the JSON.
-
-        To classify:      {"type": "existing", "categoryId": "exact-uuid"}
-        To skip:          {"type": "rule", "ruleName": "leave uncategorized"}
-
-        Examples:
-        {"type": "existing", "categoryId": "abc123"}
-        {"type": "rule", "ruleName": "leave uncategorized"}
-
-        {{ "{{" }}#if hasWebSearchTool}}You can use the web search tool to find more information about the transaction.{{ "{{" }}/if}}
-
-    depends_on:
-      - app
-
-    # Healthcheck: falha se o lock do actual-ai existir há mais de 7h (classificação travada).
-    # O Swarm reinicia o container automaticamente quando unhealthy.
-    healthcheck:
-      test:
-        - "CMD-SHELL"
-        - |
-          LOCKDIR=/tmp/actual-ai
-          if [ ! -d "$$LOCKDIR" ]; then exit 0; fi
-          AGE=$$(( $$(date +%s) - $$(stat -c %Y "$$LOCKDIR") ))
-          if [ "$$AGE" -gt 25200 ]; then exit 1; fi
-          exit 0
-      interval: 30m
-      timeout: 10s
-      retries: 2
-      start_period: 10m
-
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.1"
-          memory: 128M
-      restart_policy:
-        condition: any
-        delay: 10s
-        max_attempts: 10
-        window: 60s
+  # actual_ai:
+  #   image: *actual_ai_image
+  #   networks:
+  #     - actual_internal
+  #     - actual_egress
+  #
+  #   environment:
+  #     ACTUAL_SERVER_URL: http://app:5006
+  #     ACTUAL_PASSWORD: ${ACTUAL_PASSWORD}
+  #     ACTUAL_BUDGET_ID: ${ACTUAL_BUDGET_SYNC_ID}
+  #     # Fixed classification scope: write enabled, no bank sync before classify.
+  #     FEATURES: '["classifyOnStartup","rerunMissedTransactions","freeWebSearch"]'
+  #     # Agenda padrão: roda a classificação a cada 6 horas.
+  #     CLASSIFICATION_SCHEDULE_CRON: ${ACTUAL_AI_CLASSIFICATION_SCHEDULE_CRON:-0 */6 * * *}
+  #     TZ: ${TZ:-America/Sao_Paulo}
+  #
+  #     # Provedor
+  #     LLM_PROVIDER: ${ACTUAL_AI_LLM_PROVIDER:-openai}
+  #
+  #     # OpenAI / OpenAI-compatible
+  #     OPENAI_API_KEY: ${ACTUAL_AI_OPENAI_API_KEY:-}
+  #     OPENAI_MODEL: ${ACTUAL_AI_OPENAI_MODEL:-}
+  #     OPENAI_BASE_URL: ${ACTUAL_AI_OPENAI_BASE_URL:-}
+  #
+  #     # Anthropic
+  #     ANTHROPIC_API_KEY: ${ACTUAL_AI_ANTHROPIC_API_KEY:-}
+  #     ANTHROPIC_MODEL: ${ACTUAL_AI_ANTHROPIC_MODEL:-}
+  #     ANTHROPIC_BASE_URL: ${ACTUAL_AI_ANTHROPIC_BASE_URL:-}
+  #
+  #     # Groq
+  #     GROQ_API_KEY: ${ACTUAL_AI_GROQ_API_KEY:-}
+  #     GROQ_MODEL: ${ACTUAL_AI_GROQ_MODEL:-}
+  #     GROQ_BASE_URL: ${ACTUAL_AI_GROQ_BASE_URL:-}
+  #
+  #     # OpenRouter
+  #     OPENROUTER_API_KEY: ${ACTUAL_AI_OPENROUTER_API_KEY:-}
+  #     OPENROUTER_MODEL: ${ACTUAL_AI_OPENROUTER_MODEL:-}
+  #     OPENROUTER_BASE_URL: ${ACTUAL_AI_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+  #     OPENROUTER_REFERRER: ${ACTUAL_AI_OPENROUTER_REFERRER:-}
+  #     OPENROUTER_TITLE: ${ACTUAL_AI_OPENROUTER_TITLE:-actual-ai}
+  #     OPENROUTER_ENABLE_TOOL_CALLING: ${ACTUAL_AI_OPENROUTER_ENABLE_TOOL_CALLING:-false}
+  #
+  #     # Google Gemini
+  #     GOOGLE_GENERATIVE_AI_API_KEY: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_API_KEY:-}
+  #     GOOGLE_GENERATIVE_AI_MODEL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_MODEL:-}
+  #     GOOGLE_GENERATIVE_AI_BASE_URL: ${ACTUAL_AI_GOOGLE_GENERATIVE_AI_BASE_URL:-}
+  #
+  #     # Ollama
+  #     OLLAMA_MODEL: ${ACTUAL_AI_OLLAMA_MODEL:-}
+  #     OLLAMA_BASE_URL: ${ACTUAL_AI_OLLAMA_BASE_URL:-}
+  #
+  #     # Recursos opcionais
+  #     VALUESERP_API_KEY: ${ACTUAL_AI_VALUESERP_API_KEY:-}
+  #     ACTUAL_E2E_PASSWORD: ${ACTUAL_AI_ACTUAL_E2E_PASSWORD:-}
+  #     NODE_TLS_REJECT_UNAUTHORIZED: ${ACTUAL_AI_NODE_TLS_REJECT_UNAUTHORIZED:-}
+  #     NOT_GUESSED_TAG: ${ACTUAL_AI_NOT_GUESSED_TAG:-#sardinha-revisar}
+  #     GUESSED_TAG: ${ACTUAL_AI_GUESSED_TAG:-#sardinha-ai}
+  #     REQUESTS_PER_MINUTE: ${ACTUAL_AI_REQUESTS_PER_MINUTE:-}
+  #     TOKENS_PER_MINUTE: ${ACTUAL_AI_TOKENS_PER_MINUTE:-}
+  #     PROMPT_TEMPLATE: |-
+  #       Categorize the following bank transaction. Be conservative: it is better NOT to categorize than to categorize incorrectly.
+  #
+  #       Rules:
+  #       - Give high weight to payee and importedPayee; use description/notes as supporting context only.
+  #       - Prioritize consistency: if the same payee was categorized before, maintain that category.
+  #       - If the transaction is an installment (parcelada), ambiguous, a transfer, credit card payment, fee, chargeback, or refund, require HIGH confidence before classifying.
+  #       - If there is material doubt between similar categories, do NOT classify.
+  #       - Do not suggest new categories.
+  #
+  #       Transaction details:
+  #       * Amount: {{ "{{" }}amount}}
+  #       * Type: {{ "{{" }}type}}
+  #       {{ "{{" }}#if description}}* Description: {{ "{{" }}description}}{{ "{{" }}/if}}
+  #       {{ "{{" }}#if payee}}* Payee: {{ "{{" }}payee}}{{ "{{" }}^}}* Payee: {{ "{{" }}importedPayee}}{{ "{{" }}/if}}
+  #       {{ "{{" }}#if date}}* Date: {{ "{{" }}date}}{{ "{{" }}/if}}
+  #
+  #       Existing categories by group:
+  #       {{ "{{" }}#each categoryGroups}}
+  #       GROUP: {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
+  #       {{ "{{" }}#each categories}}
+  #       * {{ "{{" }}name}} (ID: "{{ "{{" }}id}}")
+  #       {{ "{{" }}/each}}
+  #       {{ "{{" }}/each}}
+  #
+  #       IMPORTANT: Respond with ONLY a valid JSON object. No text before or after. No markdown. No explanations outside the JSON.
+  #
+  #       To classify:      {"type": "existing", "categoryId": "exact-uuid"}
+  #       To skip:          {"type": "rule", "ruleName": "leave uncategorized"}
+  #
+  #       Examples:
+  #       {"type": "existing", "categoryId": "abc123"}
+  #       {"type": "rule", "ruleName": "leave uncategorized"}
+  #
+  #       {{ "{{" }}#if hasWebSearchTool}}You can use the web search tool to find more information about the transaction.{{ "{{" }}/if}}
+  #
+  #   depends_on:
+  #     - app
+  #
+  #   # Healthcheck: falha se o lock do actual-ai existir há mais de 7h (classificação travada).
+  #   # O Swarm reinicia o container automaticamente quando unhealthy.
+  #   healthcheck:
+  #     test:
+  #       - "CMD-SHELL"
+  #       - |
+  #         LOCKDIR=/tmp/actual-ai
+  #         if [ ! -d "$$LOCKDIR" ]; then exit 0; fi
+  #         AGE=$$(( $$(date +%s) - $$(stat -c %Y "$$LOCKDIR") ))
+  #         if [ "$$AGE" -gt 25200 ]; then exit 1; fi
+  #         exit 0
+  #     interval: 30m
+  #     timeout: 10s
+  #     retries: 2
+  #     start_period: 10m
+  #
+  #   deploy:
+  #     mode: replicated
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 512M
+  #       reservations:
+  #         cpus: "0.1"
+  #         memory: 128M
+  #     restart_policy:
+  #       condition: any
+  #       delay: 10s
+  #       max_attempts: 10
+  #       window: 60s
 
 # ============================================================================
 # VOLUMES
